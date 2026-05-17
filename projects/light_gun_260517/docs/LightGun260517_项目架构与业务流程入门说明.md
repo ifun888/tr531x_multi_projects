@@ -30,6 +30,47 @@
 3. 传输层：`transport`
 4. 驱动层：`drivers`
 
+## 2.1 业务代码直接用到的驱动与 GPIO（精确口径）
+
+> 口径说明：这里只统计 `sdk_overlay/custom` 业务代码里直接调用到的驱动，不统计“平台配置里启用但业务未调用”的外设。
+
+### A. 直接用到的驱动
+
+1. `drv_usb_cdc`
+- 业务入口：`src/drivers/drv_usb_cdc.c`
+- 直接调用：`usb_serial_read()`、`usb_serial_write()`
+- 作用：USB CDC 数据收发
+
+2. `drv_sle_link`
+- 业务入口：`src/drivers/drv_sle_link.c`
+- 直接调用路径：
+  - 发送：`of_sle_sdk_send()`（在 `src/transport/transport_sle_sdk_hook.c` 实现）
+  - 接收：`of_sle_on_rx_data()` 回调入队（`src/transport/transport_rx_hooks.c`）
+- 作用：SLE 链路数据收发
+
+3. 计时接口（诊断用途）
+- 业务入口：`src/platform/of_time.c`、`src/app/of_runtime.c`
+- 直接调用：`uapi_tcxo_get_us()`
+- 作用：RTT/时延统计
+
+### B. 这些“直接使用驱动”对应的 GPIO 结论
+
+1. `drv_usb_cdc` 对应 GPIO
+- **业务代码中未直接操作任何 GPIO 引脚号**。
+- USB 物理引脚由底层 USB 驱动/板级初始化管理，不在本业务代码里显式配置。
+
+2. `drv_sle_link` 对应 GPIO
+- **业务代码中未直接操作任何 GPIO 引脚号**。
+- SLE 的底层射频与串口映射由 sample/底层配置管理，不在本业务代码里写死 GPIO。
+
+3. `uapi_tcxo_get_us` 对应 GPIO
+- 这是时钟/计时接口，不对应业务层 GPIO 占用。
+
+### C. 一句话结论
+
+- 当前 `light_gun_260517` 业务代码直接用到的核心驱动是：`USB CDC`、`SLE`、`TCXO计时`。
+- **业务代码层面直接占用的 GPIO：没有显式写死。**
+
 ## 3. 代码启动后走什么流程
 
 入口函数是 `demo_sle_uart_overlay_entry()`：

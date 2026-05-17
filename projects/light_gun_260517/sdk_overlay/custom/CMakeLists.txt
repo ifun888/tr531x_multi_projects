@@ -14,6 +14,13 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/transport_rx_hooks.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_usb_cdc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_sle_link.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_ir_cam.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_input_keys.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_input_adc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_feedback.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_led.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_storage.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_temp_sensor.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/svc_transport_router.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/svc_profile.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/svc_calibration.c

@@ -1,6 +1,12 @@
 #include "of_selftest.h"
 #include "drivers/drv_usb_cdc.h"
 #include "drivers/drv_sle_link.h"
+#include "drivers/drv_ir_cam.h"
+#include "drivers/drv_input_keys.h"
+#include "drivers/drv_input_adc.h"
+#include "drivers/drv_feedback.h"
+#include "drivers/drv_storage.h"
+#include "drivers/drv_temp_sensor.h"
 
 static of_selftest_result_t g_result[OF_ST_MAX];
 static uint32_t g_bitmap = 0;
@@ -14,6 +20,21 @@ void of_selftest_run(void)
         g_bitmap |= (1U << i);
     }
 
+    if (!drv_ir_cam_is_ready()) {
+        g_result[OF_ST_IR] = OF_ST_RES_FAIL;
+    }
+    if (!drv_input_keys_is_ready() || !drv_input_adc_is_ready()) {
+        g_result[OF_ST_INPUT] = OF_ST_RES_FAIL;
+    }
+    if (!drv_storage_is_ready()) {
+        g_result[OF_ST_STORAGE] = OF_ST_RES_FAIL;
+    }
+    if (!drv_feedback_is_ready()) {
+        g_result[OF_ST_FEEDBACK] = OF_ST_RES_WARN;
+    }
+    if (!drv_temp_sensor_is_ready()) {
+        g_result[OF_ST_TEMP] = OF_ST_RES_WARN;
+    }
     if (!drv_usb_cdc_is_ready()) {
         g_result[OF_ST_USB] = OF_ST_RES_WARN;
     }

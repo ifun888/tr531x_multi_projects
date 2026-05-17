@@ -15,6 +15,8 @@ typedef enum {
     EVT_MODE_REQ_CALIB,
     EVT_MODE_REQ_DOCKED,
     EVT_MODE_REQ_FAULT,
+    EVT_PERIPH_DEGRADED,
+    EVT_PERIPH_RECOVERED,
 } of_event_t;
 
 #endif

@@ -3,11 +3,40 @@
 #include "of_sm.h"
 #include "of_transport.h"
 #include "of_diag.h"
+#include "drivers/drv_ir_cam.h"
+#include "drivers/drv_input_keys.h"
+#include "drivers/drv_input_adc.h"
+#include "drivers/drv_feedback.h"
+#include "drivers/drv_led.h"
+#include "drivers/drv_storage.h"
+#include "drivers/drv_temp_sensor.h"
+#include "services/svc_profile.h"
+#include "services/svc_binding.h"
+#include "services/svc_calibration.h"
 
 int svc_transport_route_auto(void);
 int svc_transport_route_tick(void);
 void of_runtime_once(void);
 static int g_route_task_started = 0;
+
+static void of_init_peripherals(void)
+{
+    const of_dev_t *devs[] = {
+        drv_storage_get_dev(),
+        drv_led_get_dev(),
+        drv_ir_cam_get_dev(),
+        drv_input_keys_get_dev(),
+        drv_input_adc_get_dev(),
+        drv_feedback_get_dev(),
+        drv_temp_sensor_get_dev(),
+    };
+    unsigned int i;
+    for (i = 0; i < (sizeof(devs) / sizeof(devs[0])); i++) {
+        if ((devs[i] != 0) && (devs[i]->ops != 0) && (devs[i]->ops->open != 0)) {
+            (void)devs[i]->ops->open(devs[i]->priv);
+        }
+    }
+}
 
 static int of_route_task(void *data)
 {
@@ -23,6 +52,10 @@ void demo_sle_uart_overlay_entry(void)
 {
     int i;
     of_sm_init();
+    of_init_peripherals();
+    (void)svc_profile_load();
+    (void)svc_binding_load();
+    (void)svc_calibration_exit();
     for (i = 0; i < 5; i++) {
         of_sm_step();
     }

@@ -37,7 +37,13 @@ void of_sm_step(void)
                 break;
             case EVT_MODE_REQ_FAULT:
             case EVT_SELFTEST_FAIL:
+            case EVT_PERIPH_DEGRADED:
                 g_mode = OF_MODE_FAULT;
+                break;
+            case EVT_PERIPH_RECOVERED:
+                if (g_mode == OF_MODE_FAULT) {
+                    g_mode = OF_MODE_RUN;
+                }
                 break;
             default:
                 break;
