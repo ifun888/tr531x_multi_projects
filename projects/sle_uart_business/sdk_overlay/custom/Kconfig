@@ -1,0 +1,9 @@
+menu "SLE UART Business Overlay"
+
+config SLE_UART_BIZ_OVERLAY_ENABLE
+    bool
+    prompt "Enable SLE UART business overlay placeholder"
+    default y
+    depends on SAMPLE_ENABLE
+
+endmenu

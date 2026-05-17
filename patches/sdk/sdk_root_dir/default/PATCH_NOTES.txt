@@ -1,0 +1,1 @@
+0001-application-samples-kconfig-add-custom-entry.patch | add external custom Kconfig entry for project overlay

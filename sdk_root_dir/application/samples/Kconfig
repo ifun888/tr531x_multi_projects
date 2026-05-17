@@ -70,3 +70,5 @@ config ENABLE_NFC_SAMPLE
 if ENABLE_NFC_SAMPLE
 osource "application/samples/nfc/Kconfig"
 endif
+
+osource "application/samples/custom/Kconfig"

@@ -1,0 +1,8 @@
+--- a/application/samples/Kconfig
++++ b/application/samples/Kconfig
+@@ -70,3 +70,5 @@
+ if ENABLE_NFC_SAMPLE
+ osource "application/samples/nfc/Kconfig"
+ endif
++
++osource "application/samples/custom/Kconfig"

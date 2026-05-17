@@ -1,0 +1,17 @@
+# Build cache
+/tools/tr531x/.cache/
+
+# Per-project build outputs
+/projects/*/output/
+
+# Optional per-project config diffs
+/projects/*/config/patches/*.patch
+
+# SDK build artifacts
+/sdk_root_dir/output/
+/sdk_root_dir/build/config/target_config/*/menuconfig/acore/*.config.old
+
+# Editor/OS
+*.swp
+*.swo
+.DS_Store
