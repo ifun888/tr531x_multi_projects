@@ -47,6 +47,7 @@
 #define SLE_OTA_8_BIT_SHIFT                 8
 #define SLE_OTA_RPT_SERVICEID               0X03
 #define SLE_OTA_RPT_COMMANDID               0X07
+extern void of_sle_on_rx_data(const uint8_t *data, uint16_t len) __attribute__((weak));
 
 static bool g_sle_ota_dongle_inited = false;
 static uint32_t g_sle_ota_dongle_hid_mouse_index = 0;
@@ -238,6 +239,9 @@ static void sle_ota_notification_cb(uint8_t client_id, uint16_t conn_id, ssapc_h
     if (data == NULL || data->data_len == 0 || data->data == NULL) {
         return;
     }
+    if (of_sle_on_rx_data != 0) {
+        of_sle_on_rx_data((const uint8_t *)data->data, data->data_len);
+    }
     if (data->data_len == USB_KEYBOARD_REPORTER_LEN) {
         sle_ota_keyboard_dongle_send_data((usb_hid_keyboard_report_t *)data->data);
     } else if (data->data_len == USB_MOUSE_REPORTER_LEN) {
@@ -266,6 +270,9 @@ static void sle_ota_indication_cb(uint8_t client_id, uint16_t conn_id, ssapc_han
     unused(status);
     if (data == NULL || data->data_len == 0 || data->data == NULL) {
         return;
+    }
+    if (of_sle_on_rx_data != 0) {
+        of_sle_on_rx_data((const uint8_t *)data->data, data->data_len);
     }
     if (data->data_len == USB_KEYBOARD_REPORTER_LEN) {
         sle_ota_keyboard_dongle_send_data((usb_hid_keyboard_report_t *)data->data);

@@ -1,0 +1,12 @@
+#ifndef OF_PROTOCOL_H
+#define OF_PROTOCOL_H
+
+#include <stdint.h>
+#include "of_types.h"
+
+void of_proto_docked_process(const uint8_t *buf, uint32_t len);
+void of_proto_mh_process(const uint8_t *buf, uint32_t len);
+void of_proto_set_mode(of_mode_t mode);
+of_mode_t of_proto_get_mode(void);
+
+#endif

@@ -47,6 +47,7 @@ uint16_t g_sle_pair_hdl;
 #define sample_at_log_print(fmt, args...) osal_printk(fmt, ##args)
 #define SLE_UART_SERVER_LOG "[sle uart server]"
 #define SLE_SERVER_INIT_DELAY_MS    1000
+extern void of_sle_on_link_state(int connected) __attribute__((weak));
 static sle_uart_server_msg_queue g_sle_uart_server_msg_queue = NULL;
 static uint8_t g_sle_uart_base[] = { 0x37, 0xBE, 0xA8, 0x80, 0xFC, 0x70, 0x11, 0xEA, \
     0xB7, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -340,12 +341,18 @@ static void sle_connect_state_changed_cbk(uint16_t conn_id, const sle_addr_t *ad
         addr->addr[BT_INDEX_0], addr->addr[BT_INDEX_4]);
     if (conn_state == SLE_ACB_STATE_CONNECTED) {
         g_sle_conn_hdl = conn_id;
+        if (of_sle_on_link_state != 0) {
+            of_sle_on_link_state(1);
+        }
     } else if (conn_state == SLE_ACB_STATE_DISCONNECTED) {
 #ifdef CONFIG_SAMPLE_SUPPORT_LOW_LATENCY_TYPE
         g_trigger = 0;
 #endif
         g_sle_conn_hdl = 0;
         g_sle_pair_hdl = 0;
+        if (of_sle_on_link_state != 0) {
+            of_sle_on_link_state(0);
+        }
         if (g_sle_uart_server_msg_queue != NULL) {
             g_sle_uart_server_msg_queue(sle_connect_state, sizeof(sle_connect_state));
         }

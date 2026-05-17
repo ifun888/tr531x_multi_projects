@@ -44,6 +44,7 @@
 #define SLE_SERVER_DATA_LEN_INDEX                   10
 #define SLE_SERVER_8_BIT_SHIFT                      8
 #define SLE_OTA_DONGLE_LOG                          "[sle ota dongle]"
+extern void of_sle_on_link_state(int connected) __attribute__((weak));
 
 static uint16_t g_sle_ota_conn_id = 0;
 static uint8_t g_ssap_find_ready = 0;
@@ -276,6 +277,9 @@ static void sle_ota_client_sample_connect_state_changed_cbk(uint16_t conn_id, co
     g_sle_ota_conn_id = conn_id;
     g_sle_ota_conn_state = conn_state;
     g_sle_ota_pair_state = pair_state;
+    if (of_sle_on_link_state != 0) {
+        of_sle_on_link_state((conn_state == SLE_ACB_STATE_CONNECTED) ? 1 : 0);
+    }
     sle_ota_get_conn_status(SERVICE_ID_SERVICE_CONNECT, COMMAND_ID_GET_CONN_STATUS, NULL, 0);
     if (conn_state == SLE_ACB_STATE_CONNECTED) {
         osal_printk("%s SLE_ACB_STATE_CONNECTED\r\n", SLE_OTA_DONGLE_LOG);

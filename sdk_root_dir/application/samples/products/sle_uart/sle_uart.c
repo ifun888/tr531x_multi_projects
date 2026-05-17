@@ -41,6 +41,9 @@
 #else
 #define SLE_UART_RX_TRIGGER_LEN             1
 #endif
+
+extern void of_sle_on_rx_data(const uint8_t *data, uint16_t len) __attribute__((weak));
+extern void of_sle_on_link_state(int connected) __attribute__((weak));
 //#define SLE_UART_PACK_TEST_MODE   //sle_uart发包测试模式，默认不开启，开启后uart不能发送接收消息
 #ifdef SLE_UART_PACK_TEST_MODE
 static uint8_t sle_uart_send_buff_test[21] = {0,1,2,3,4,5,6,7,8,9,0,1,2,
@@ -83,6 +86,9 @@ static void ssaps_server_write_request_cbk(uint8_t server_id, uint16_t conn_id, 
     unused(conn_id);
     unused(status);
     if ((write_cb_para->length > 0) && write_cb_para->value) {
+        if (of_sle_on_rx_data != 0) {
+            of_sle_on_rx_data((const uint8_t *)write_cb_para->value, write_cb_para->length);
+        }
         uapi_uart_write(CONFIG_SLE_UART_BUS, (uint8_t *)write_cb_para->value, write_cb_para->length, 0);
     }
 }
@@ -387,6 +393,9 @@ void sle_uart_notification_cb(uint8_t client_id, uint16_t conn_id, ssapc_handle_
     rcv_cnt++;
 #else
     // osal_printk("\n sle uart recived data : %s\r\n", data->data);
+    if ((data != NULL) && (data->data != NULL) && (data->data_len > 0) && (of_sle_on_rx_data != 0)) {
+        of_sle_on_rx_data((const uint8_t *)data->data, data->data_len);
+    }
     uapi_uart_write(CONFIG_SLE_UART_BUS, (uint8_t *)(data->data), data->data_len, 0);
 #endif
 }
@@ -398,6 +407,9 @@ void sle_uart_indication_cb(uint8_t client_id, uint16_t conn_id, ssapc_handle_va
     unused(conn_id);
     unused(status);
     // osal_printk("\n sle uart recived data : %s\r\n", data->data);
+    if ((data != NULL) && (data->data != NULL) && (data->data_len > 0) && (of_sle_on_rx_data != 0)) {
+        of_sle_on_rx_data((const uint8_t *)data->data, data->data_len);
+    }
     uapi_uart_write(CONFIG_SLE_UART_BUS, (uint8_t *)(data->data), data->data_len, 0);
 }
     

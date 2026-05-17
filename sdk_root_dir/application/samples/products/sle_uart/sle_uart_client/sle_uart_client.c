@@ -35,6 +35,7 @@
 #define SLE_UART_SERVER_NAME            "sle_uart_s_test"
 #endif
 #define SLE_UART_CLIENT_LOG             "[sle uart client]"
+extern void of_sle_on_link_state(int connected) __attribute__((weak));
 
 static ssapc_find_service_result_t g_sle_uart_find_service_result = { 0 };
 static sle_dev_manager_callbacks_t g_sle_dev_mgr_cbk = { 0 };
@@ -201,6 +202,9 @@ static void sle_uart_client_sample_connect_state_changed_cbk(uint16_t conn_id, c
     osal_printk("%s conn state changed disc_reason:0x%x\r\n", SLE_UART_CLIENT_LOG, disc_reason);
     g_sle_uart_conn_id = conn_id;
     if (conn_state == SLE_ACB_STATE_CONNECTED) {
+        if (of_sle_on_link_state != 0) {
+            of_sle_on_link_state(1);
+        }
         osal_printk("%s SLE_ACB_STATE_CONNECTED\r\n", SLE_UART_CLIENT_LOG);
 #ifdef CONFIG_SAMPLE_SUPPORT_LOW_LATENCY_TYPE
         sle_low_latency_tx_enable();
@@ -221,6 +225,9 @@ static void sle_uart_client_sample_connect_state_changed_cbk(uint16_t conn_id, c
     } else if (conn_state == SLE_ACB_STATE_NONE) {
         osal_printk("%s SLE_ACB_STATE_NONE\r\n", SLE_UART_CLIENT_LOG);
     } else if (conn_state == SLE_ACB_STATE_DISCONNECTED) {
+        if (of_sle_on_link_state != 0) {
+            of_sle_on_link_state(0);
+        }
         osal_printk("%s SLE_ACB_STATE_DISCONNECTED\r\n", SLE_UART_CLIENT_LOG);
         sle_uart_start_scan();
     } else {

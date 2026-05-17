@@ -1,0 +1,20 @@
+#ifndef OF_EVENT_H
+#define OF_EVENT_H
+
+typedef enum {
+    EVT_NONE = 0,
+    EVT_BOOT_DONE,
+    EVT_TICK_1MS,
+    EVT_USB_MOUNTED,
+    EVT_USB_LOST,
+    EVT_SLE_CONNECTED,
+    EVT_SLE_LOST,
+    EVT_SELFTEST_FAIL,
+    EVT_MODE_REQ_RUN,
+    EVT_MODE_REQ_PAUSE,
+    EVT_MODE_REQ_CALIB,
+    EVT_MODE_REQ_DOCKED,
+    EVT_MODE_REQ_FAULT,
+} of_event_t;
+
+#endif
