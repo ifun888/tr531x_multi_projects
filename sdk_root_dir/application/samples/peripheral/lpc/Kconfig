@@ -1,0 +1,9 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2024-2024. All rights reserved.
+#===============================================================================
+config LPC_GPIO_WAKEUP_PIN
+    int
+    prompt "Choose lpc gpio wakeup pin."
+    depends on SAMPLE_SUPPORT_LPC
+    default 0

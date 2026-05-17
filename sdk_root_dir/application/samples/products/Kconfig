@@ -1,0 +1,111 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2023-2023. All rights reserved.
+#===============================================================================
+config SAMPLE_SUPPORT_BLE_UART
+    bool
+    prompt "Support BLE UART sample."
+    default n
+    depends on ENABLE_PRODUCTS_SAMPLE
+    help
+        This option means support BLE UART Sample.
+
+if SAMPLE_SUPPORT_BLE_UART
+menu "BLE UART Sample Configuration"
+    osource "application/samples/products/ble_uart/Kconfig"
+endmenu
+endif
+
+config SAMPLE_SUPPORT_RCU
+    bool
+    prompt "Support RCU sample."
+    default n
+    depends on ENABLE_PRODUCTS_SAMPLE
+    help
+        This option means support RCU Sample.
+
+if SAMPLE_SUPPORT_RCU
+menu "rcu Sample Configuration"
+    osource "application/samples/products/rcu/Kconfig"
+endmenu
+endif
+
+config SAMPLE_SUPPORT_SLE_OTA_DONGLE
+    bool
+    prompt "Support sle ota dongle sample."
+    default n
+    depends on ENABLE_PRODUCTS_SAMPLE
+    help
+        This option means support sle ota dongle Sample.
+
+if SAMPLE_SUPPORT_SLE_OTA_DONGLE
+menu "sle ota dongle Sample Configuration"
+    osource "application/samples/products/sle_ota_dongle/Kconfig"
+endmenu
+endif
+
+config SAMPLE_SUPPORT_SLE_MULTI_CONN
+    bool
+    prompt "Support SLE Multi Connections sample."
+    default n
+    depends on ENABLE_PRODUCTS_SAMPLE
+    help
+        This option means support SLE Multi Connections Sample.
+
+if SAMPLE_SUPPORT_SLE_MULTI_CONN
+menu "SLE Multi Connections Sample Configuration"
+    osource "application/samples/products/sle_multi_conn/Kconfig"
+endmenu
+endif
+
+config SAMPLE_SUPPORT_SLE_UART
+    bool
+    prompt "Support SLE UART sample."
+    default n
+    depends on ENABLE_PRODUCTS_SAMPLE
+    help
+        This option means support SLE UART Sample.
+
+if SAMPLE_SUPPORT_SLE_UART
+menu "SLE UART Sample Configuration"
+    osource "application/samples/products/sle_uart/Kconfig"
+endmenu
+endif
+
+config SAMPLE_SUPPORT_LOWPOWER
+    bool
+    prompt "Support lowpower sample."
+    default n
+    depends on ENABLE_PRODUCTS_SAMPLE
+    select PM_SYS_SUPPORT
+    help
+        This option means support lowpower Sample.
+
+config SAMPLE_SUPPORT_SLE_LOWPOWER
+    bool
+    prompt "Support SLE_LOWPOWER Sample."
+    default n
+    depends on ENABLE_PRODUCTS_SAMPLE
+    help
+        This option means support SLE_LOWPOWER Sample.
+
+if SAMPLE_SUPPORT_SLE_LOWPOWER
+menu "SLE_LOWPOWER Configuration"
+    osource "application/samples/products/sle_lowpower/Kconfig"
+endmenu
+endif
+
+config SAMPLE_SUPPORT_SLE_MULTI_CONN_PERFORMANCE
+    bool
+    prompt "Support SLE_MULTI_CONN_PERFORMANCE Sample."
+    default n
+    depends on ENABLE_PRODUCTS_SAMPLE
+    help
+        This option means support SLE_MULTI_CONN_PERFORMANCE Sample.
+
+if SAMPLE_SUPPORT_SLE_MULTI_CONN_PERFORMANCE
+menu "SLE_MULTI_CONN_PERFORMANCE Configuration"
+    osource "application/samples/products/sle_multi_conn_performance/Kconfig"
+endmenu
+endif
+

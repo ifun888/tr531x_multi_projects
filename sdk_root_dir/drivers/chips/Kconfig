@@ -1,0 +1,58 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2022-2022. All rights reserved.
+#===============================================================================
+
+choice
+    prompt "Choose Chip"
+    default CHIP_TR531X
+config CHIP_TRSWGXX
+    bool "trswgxx"
+
+config CHIP_TR5336
+    bool "tr5336"
+
+config CHIP_TR531X
+    bool "tr531x"
+
+config CHIP_SW39
+    bool "sw39"
+
+config CHIP_FHL2
+    bool "fenghuolunv200"
+endchoice
+
+if CHIP_TRSWGXX
+menu "Chip Configurations for trswgxx"
+    comment "Config trswgxx"
+    osource "drivers/chips/trswgxx/Kconfig"
+endmenu
+endif
+
+if CHIP_TR5336
+menu "Chip Configurations for tr5336"
+    comment "Config tr5336"
+    osource "drivers/chips/tr5336/Kconfig"
+endmenu
+endif
+
+if CHIP_TR531X
+menu "Chip Configurations for tr531x"
+    comment "tr531x chipset resource config"
+    osource "drivers/chips/tr531x/Kconfig"
+endmenu
+endif
+
+if CHIP_SW39
+menu "Chip Configurations for sw39"
+    comment "sw39 chipset resource config"
+    osource "drivers/chips/sw39/Kconfig"
+endmenu
+endif
+
+if CHIP_FHL2
+menu "Chip Configurations for fenghuolunv200"
+    comment "fenghuolunv200 chipset resource config"
+    osource "drivers/chips/fhl2/boot/commonboot/Kconfig"
+endmenu
+endif

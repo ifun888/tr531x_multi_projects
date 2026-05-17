@@ -1,0 +1,21 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2023-2023. All rights reserved.
+#===============================================================================
+config UART_BUS_ID
+    int
+    prompt "Choose UART bus id."
+    depends on SAMPLE_SUPPORT_UART
+    default 1
+
+config UART_SUPPORT_INT_MODE
+    bool
+    prompt "UART support interrupt mode."
+    depends on SAMPLE_SUPPORT_UART
+    default n
+
+config UART_TRANSFER_SIZE
+    int
+    prompt "Config UART transfer size."
+    depends on SAMPLE_SUPPORT_UART
+    default 64

@@ -1,0 +1,21 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2022-2022. All rights reserved.
+#===============================================================================
+config SPI_USING_V100
+    bool
+    prompt "Using SPI V100."
+    default y
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_USING_V151
+    bool
+    prompt "Using SPI V151."
+    default y
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_USING_V151_100
+    bool
+    prompt "Using SPI V151_100."
+    default n
+    depends on DRIVER_SUPPORT_SPI

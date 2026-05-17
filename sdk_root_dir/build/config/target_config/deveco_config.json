@@ -1,0 +1,234 @@
+{
+    "TR5310-S": {
+        "TR5310-S-STANDARD": {
+            "cmake": {
+                "support_task": [
+                    "build",
+                    "clean",
+                    "rebuild",
+                    "upload",
+                    "stack analysis",
+                    "image analysis",
+                    "kconfig"
+                ],
+                "build": {
+                    "build_command": "./build.py",
+                    "build_argv": "standard-tr5310-s",
+                    "custom_build_command": {
+                        "standard-tr5310-s": {
+                            "build_command": "./build.py",
+                            "build_argv": "standard-tr5310-s"
+                        }
+                    }
+                },
+                "stack analysis": {
+                    "analysis_elf_path": "./output/tr5310/acore/standard-tr5310-s/application.elf",
+                    "analysis_compiler_path": "./tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp_win/bin",
+                    "build_config_path": ""
+                },
+                "image analysis": {
+                    "analysis_elf_path": "./output/tr5310/acore/standard-tr5310-s/application.elf",
+                    "analysis_map_path": "./output/tr5310/acore/standard-tr5310-s/application.map",
+                    "analysis_compiler_path": "./tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp_win/bin",
+                    "build_config_path": ""
+                },
+                "upload": {
+                    "upload_speed": "750000",
+                    "upload_partitions": "./tools/pkg/fwpkg/tr5310/tr5310_all.fwpkg",
+                    "upload_protocol": ""
+                },
+                "debug": {
+                    "debug_client": "gdb",
+                    "debug_tool": "jlink",
+                    "debug_interface": "swd",
+                    "debug_device": "CPU CORE|RISC-V|RISC-V",
+                    "debug_elf": "./output/tr5310/acore/standard-tr5310-s/application.elf"
+                },
+                "kconfig": {
+                    "menu_config_file_path": "./config.in",
+                    "menu_config_build_target": "standard-tr5310-s",
+                    "menu_config_core": "acore",
+                    "menu_config_target_path": "./build/config/target_config/tr5310/menuconfig/acore"
+                },
+                "chip config": {
+                    "series_name": "tr5310",
+                    "board_build.mcu": "tr5310"
+                }
+            }
+        }
+    },
+    "TR5310P-S": {
+        "TR5310P-S-STANDARD": {
+            "cmake": {
+                "support_task": [
+                    "build",
+                    "clean",
+                    "rebuild",
+                    "upload",
+                    "stack analysis",
+                    "image analysis",
+                    "kconfig"
+                ],
+                "build": {
+                    "build_command": "./build.py",
+                    "build_argv": "standard-tr5310p-s",
+                    "custom_build_command": {
+                        "standard-tr5310p-s": {
+                            "build_command": "./build.py",
+                            "build_argv": "standard-tr5310p-s"
+                        }
+                    }
+                },
+                "stack analysis": {
+                    "analysis_elf_path": "./output/tr5310p/acore/standard-tr5310p-s/application.elf",
+                    "analysis_compiler_path": "./tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp_win/bin",
+                    "build_config_path": ""
+                },
+                "image analysis": {
+                    "analysis_elf_path": "./output/tr5310p/acore/standard-tr5310p-s/application.elf",
+                    "analysis_map_path": "./output/tr5310p/acore/standard-tr5310p-s/application.map",
+                    "analysis_compiler_path": "./tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp_win/bin",
+                    "build_config_path": ""
+                },
+                "upload": {
+                    "upload_speed": "750000",
+                    "upload_partitions": "./tools/pkg/fwpkg/tr5310p/tr5310p_all.fwpkg",
+                    "upload_protocol": ""
+                },
+                "debug": {
+                    "debug_client": "gdb",
+                    "debug_tool": "jlink",
+                    "debug_interface": "swd",
+                    "debug_device": "CPU CORE|RISC-V|RISC-V",
+                    "debug_elf": "./output/tr5310p/acore/standard-tr5310p-s/application.elf"
+                },
+                "kconfig": {
+                    "menu_config_file_path": "./config.in",
+                    "menu_config_build_target": "standard-tr5310p-s",
+                    "menu_config_core": "acore",
+                    "menu_config_target_path": "./build/config/target_config/tr5310p/menuconfig/acore"
+                },
+                "chip config": {
+                    "series_name": "tr5310p",
+                    "board_build.mcu": "tr5310p"
+                }
+            }
+        }
+    },
+    "TR5312L-S": {
+        "TR5312L-S-STANDARD": {
+            "cmake": {
+                "support_task": [
+                    "build",
+                    "clean",
+                    "rebuild",
+                    "upload",
+                    "stack analysis",
+                    "image analysis",
+                    "kconfig"
+                ],
+                "build": {
+                    "build_command": "./build.py",
+                    "build_argv": "standard-tr5312l-s",
+                    "custom_build_command": {
+                        "standard-tr5312l-s": {
+                            "build_command": "./build.py",
+                            "build_argv": "standard-tr5312l-s"
+                        }
+                    }
+                },
+                "stack analysis": {
+                    "analysis_elf_path": "./output/tr5312l/acore/standard-tr5312l-s/application.elf",
+                    "analysis_compiler_path": "./tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp_win/bin",
+                    "build_config_path": ""
+                },
+                "image analysis": {
+                    "analysis_elf_path": "./output/tr5312l/acore/standard-tr5312l-s/application.elf",
+                    "analysis_map_path": "./output/tr5312l/acore/standard-tr5312l-s/application.map",
+                    "analysis_compiler_path": "./tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp_win/bin",
+                    "build_config_path": ""
+                },
+                "upload": {
+                    "upload_speed": "750000",
+                    "upload_partitions": "./tools/pkg/fwpkg/tr5312l/tr5312l_all.fwpkg",
+                    "upload_protocol": ""
+                },
+                "debug": {
+                    "debug_client": "gdb",
+                    "debug_tool": "jlink",
+                    "debug_interface": "swd",
+                    "debug_device": "CPU CORE|RISC-V|RISC-V",
+                    "debug_elf": "./output/tr5312l/acore/standard-tr5312l-s/application.elf"
+                },
+                "kconfig": {
+                    "menu_config_file_path": "./config.in",
+                    "menu_config_build_target": "standard-tr5312l-s",
+                    "menu_config_core": "acore",
+                    "menu_config_target_path": "./build/config/target_config/tr5312l/menuconfig/acore"
+                },
+                "chip config": {
+                    "series_name": "tr5312l",
+                    "board_build.mcu": "tr5312l"
+                }
+            }
+        }
+    },
+    "TR5316-S": {
+        "TR5316-S-STANDARD": {
+            "cmake": {
+                "support_task": [
+                    "build",
+                    "clean",
+                    "rebuild",
+                    "upload",
+                    "stack analysis",
+                    "image analysis",
+                    "kconfig"
+                ],
+                "build": {
+                    "build_command": "./build.py",
+                    "build_argv": "standard-tr5316-s",
+                    "custom_build_command": {
+                        "standard-tr5316-s": {
+                            "build_command": "./build.py",
+                            "build_argv": "standard-tr5316-s"
+                        }
+                    }
+                },
+                "stack analysis": {
+                    "analysis_elf_path": "./output/tr5316/acore/standard-tr5316-s/application.elf",
+                    "analysis_compiler_path": "./tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp_win/bin",
+                    "build_config_path": ""
+                },
+                "image analysis": {
+                    "analysis_elf_path": "./output/tr5316/acore/standard-tr5316-s/application.elf",
+                    "analysis_map_path": "./output/tr5316/acore/standard-tr5316-s/application.map",
+                    "analysis_compiler_path": "./tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp_win/bin",
+                    "build_config_path": ""
+                },
+                "upload": {
+                    "upload_speed": "750000",
+                    "upload_partitions": "./tools/pkg/fwpkg/tr5316/tr5316_all.fwpkg",
+                    "upload_protocol": ""
+                },
+                "debug": {
+                    "debug_client": "gdb",
+                    "debug_tool": "jlink",
+                    "debug_interface": "swd",
+                    "debug_device": "CPU CORE|RISC-V|RISC-V",
+                    "debug_elf": "./output/tr5316/acore/standard-tr5316-s/application.elf"
+                },
+                "kconfig": {
+                    "menu_config_file_path": "./config.in",
+                    "menu_config_build_target": "standard-tr5316-s",
+                    "menu_config_core": "acore",
+                    "menu_config_target_path": "./build/config/target_config/tr5316/menuconfig/acore"
+                },
+                "chip config": {
+                    "series_name": "tr5316",
+                    "board_build.mcu": "tr5316"
+                }
+            }
+        }
+    }
+}

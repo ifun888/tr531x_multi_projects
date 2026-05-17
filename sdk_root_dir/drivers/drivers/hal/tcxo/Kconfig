@@ -1,0 +1,9 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2024-2024. All rights reserved.
+#===============================================================================
+config TCXO_WITH_TWO_DATA_REGS
+    bool
+    prompt "TCXO calculated with two data registers."
+    default n
+    depends on DRIVER_SUPPORT_TCXO

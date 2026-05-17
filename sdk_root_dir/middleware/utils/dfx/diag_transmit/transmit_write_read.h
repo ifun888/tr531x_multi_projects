@@ -1,0 +1,14 @@
+/*
+ * Copyright (c) Triductor. 2021-2021. All rights reserved.
+ * Description: transmit
+ * This file should be changed only infrequently and with great care.
+ */
+#ifndef TRANSMIT_WRITE_READ_H
+#define TRANSMIT_WRITE_READ_H
+
+#include "transmit_item.h"
+
+int32_t file_read_data(uintptr_t usr_data, uint32_t offset, uint8_t *buf, uint32_t len);
+int32_t file_write_data(uintptr_t usr_data, uint32_t offset, uint8_t *buf, uint32_t len);
+
+#endif /* TRANSMIT_WRITE_READ_H */

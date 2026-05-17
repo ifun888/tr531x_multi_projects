@@ -1,0 +1,9 @@
+#===============================================================================
+# @brief    cmake file
+# Copyright (c) Triductor. 2022-2022. All rights reserved.
+#===============================================================================
+add_subdirectory_if_exist(loaderboot_linker)
+add_subdirectory_if_exist(multi_mouse)
+add_subdirectory_if_exist(romboot_linker)
+add_subdirectory_if_exist(sle_dongle)
+add_subdirectory_if_exist(standard)

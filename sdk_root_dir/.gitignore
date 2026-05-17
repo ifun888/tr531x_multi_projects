@@ -1,0 +1,14 @@
+output/
+build/script/__pycache__/
+build/config/target_config/tr5310/fota/__pycache__/
+build/script/nv/__pycache__/
+build/script/utils/__pycache__/
+tools/bin/compiler/riscv/cc_riscv32_musl_b010/cc_riscv32_musl_fp/lib/sec/libsec_image.so
+tools/pkg/fwpkg/tr5310/
+tools/pkg/fwpkg/tr5310p/
+tools/pkg/fwpkg/tr5312l/
+tools/pkg/fwpkg/tr5316/
+build/config/target_config/tr5310/menuconfig/acore/standard_tr5310_s.config.old
+build/config/target_config/tr5310p/menuconfig/acore/standard_tr5310p_s.config.old
+build/config/target_config/tr5310p/fota/__pycache__/
+interim_binary/tr5310p/bin/nv/standard-tr5310p-s/tr5310p_all_nv.bin

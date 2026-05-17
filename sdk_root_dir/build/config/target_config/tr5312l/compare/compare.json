@@ -1,0 +1,10 @@
+[
+   {
+      "targets":[
+         "<out_root>/<chip>/acore/standard-tr5312l-asic",
+         "<out_root>/<chip>/acore/standard-tr5312l-asic-btc-only",
+         "<out_root>/<chip>/acore/standard-tr5312l-asic-tag"
+      ],
+      "name": "application_rom.bin"
+   }
+]

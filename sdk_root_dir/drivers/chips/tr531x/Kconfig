@@ -1,0 +1,100 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2022-2022. All rights reserved.
+#===============================================================================
+config I2C_BUS_MAX_NUM
+    int
+    prompt "I2C Max Bus num, the BS2x chip supports a maximum of 2 buses."
+    range 1 2
+    default 1
+    depends on DRIVER_SUPPORT_I2C
+
+config SPI_BUS_MAX_NUM
+    int
+    prompt "SPI Max Bus num, the BS2x chip supports a maximum of 3 buses."
+    range 1 3
+    default 2
+    depends on DRIVER_SUPPORT_SPI
+
+config SUPPORT_LOG_THREAD
+    bool
+    prompt "CREATE LOG MAIN THREAD."
+    default y
+
+config SPI_BUS0_CLK_PIN
+    int
+    prompt "SPI clk pin of bus0."
+    default 0
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS0_CS_PIN
+    int
+    prompt "SPI cs pin of bus0."
+    default 1
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS0_DI_PIN
+    int
+    prompt "SPI data input pin of bus0."
+    default 2
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS0_DO_PIN
+    int
+    prompt "SPI data output pin of bus0."
+    default 3
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS1_CLK_PIN
+    int
+    prompt "SPI clk pin of bus1."
+    default 4
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS1_CS_PIN
+    int
+    prompt "SPI cs pin of bus1."
+    default 5
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS1_DI_PIN
+    int
+    prompt "SPI data input pin of bus1."
+    default 6
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS1_DO_PIN
+    int
+    prompt "SPI data output pin of bus1."
+    default 7
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS2_CLK_PIN
+    int
+    prompt "SPI clk pin of bus2."
+    default 8
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS2_CS_PIN
+    int
+    prompt "SPI cs pin of bus2."
+    default 9
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS2_DI_PIN
+    int
+    prompt "SPI data input pin of bus2."
+    default 10
+    depends on DRIVER_SUPPORT_SPI
+
+config SPI_BUS2_DO_PIN
+    int
+    prompt "SPI data output pin of bus2."
+    default 11
+    depends on DRIVER_SUPPORT_SPI
+
+config PM_CLOCK_SUPPORT_SFC_HIGH_FREQ
+    bool
+    prompt "SFC enable high freq"
+    default n
+    depends on DRIVER_SUPPORT_SFC

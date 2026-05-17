@@ -1,0 +1,29 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2022-2023. All rights reserved.
+#===============================================================================
+
+choice
+    prompt "Choose Chip"
+
+config MIDDLEWARE_CHIP_TRSWGXX
+    bool "trswgxx"
+
+config MIDDLEWARE_CHIP_TR5336
+    bool "tr5336"
+
+endchoice
+
+if MIDDLEWARE_CHIP_TRSWGXX
+menu "Chip Configurations for trswgxx"
+    comment "Config trswgxx"
+    osource "middleware/chips/trswgxx/Kconfig"
+endmenu
+endif
+
+if MIDDLEWARE_CHIP_TR5336
+menu "Chip Configurations for tr5336"
+    comment "Config tr5336"
+    osource "middleware/chips/tr5336/Kconfig"
+endmenu
+endif

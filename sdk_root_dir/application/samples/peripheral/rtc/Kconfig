@@ -1,0 +1,21 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2023-2023. All rights reserved.
+#===============================================================================
+config RTC_INDEX
+    int
+    prompt "Choose RTC Test Index."
+    depends on SAMPLE_SUPPORT_RTC
+    default 2
+
+config RTC_IRQN
+    int
+    prompt "Choose RTC Test Irq Number."
+    depends on SAMPLE_SUPPORT_RTC
+    default 51
+
+config RTC_PRIO
+    int
+    prompt "Choose RTC Test Priority."
+    depends on SAMPLE_SUPPORT_RTC
+    default 1

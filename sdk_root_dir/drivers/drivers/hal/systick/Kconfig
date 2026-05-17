@@ -1,0 +1,9 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2024-2024. All rights reserved.
+#===============================================================================
+config SYSTICK_WITH_TWO_DATA_REGS
+    bool
+    prompt "Systick calculated with two data registers."
+    default n
+    depends on DRIVER_SUPPORT_SYSTICK

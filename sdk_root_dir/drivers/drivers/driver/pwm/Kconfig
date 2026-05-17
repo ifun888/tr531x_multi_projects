@@ -1,0 +1,9 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2022-2022. All rights reserved.
+#===============================================================================
+config PWM_SUPPORT_LPM
+    bool
+    prompt "PWM support low power mode, supend and reusme."
+    default n
+    depends on DRIVER_SUPPORT_PWM

@@ -1,0 +1,15 @@
+#===============================================================================
+# @brief    Kconfig file.
+# Copyright (c) Triductor. 2024-2024. All rights reserved.
+#===============================================================================
+config SAMPLE_BUTTON_PIN
+    int
+    prompt "Choose BUTTON pin."
+    depends on SAMPLE_SUPPORT_BUTTON
+    default 29
+
+config SAMPLE_BUTTON_DEBOUNCE_DELAY_US
+    int
+    prompt "Choose BUTTON Debounce delay time(us)."
+    depends on SAMPLE_SUPPORT_BUTTON
+    default 200
