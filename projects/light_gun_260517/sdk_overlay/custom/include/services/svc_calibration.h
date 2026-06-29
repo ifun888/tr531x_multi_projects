@@ -16,6 +16,7 @@ typedef enum {
 
 int svc_calibration_enter(void);
 int svc_calibration_exit(void);
+int svc_calibration_set_stage(of_cal_state_t stage);
 int svc_calibration_push_sample(uint16_t x, uint16_t y);
 int svc_calibration_commit(void);
 int svc_calibration_get_state(void);

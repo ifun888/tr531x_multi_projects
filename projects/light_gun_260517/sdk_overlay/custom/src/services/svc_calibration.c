@@ -45,6 +45,11 @@ static void cal_reset_pending(void)
     cal_reset_accum();
 }
 
+static int cal_stage_is_sampling(of_cal_state_t stage)
+{
+    return (stage >= OF_CAL_TOP) && (stage <= OF_CAL_CENTER);
+}
+
 static uint16_t cal_avg_x(void)
 {
     return (g_accum.count != 0U) ? (uint16_t)(g_accum.sum_x / g_accum.count) : 0U;
@@ -99,9 +104,19 @@ int svc_calibration_exit(void)
     return 0;
 }
 
+int svc_calibration_set_stage(of_cal_state_t stage)
+{
+    if ((!cal_stage_is_sampling(stage)) && (stage != OF_CAL_VERIFY)) {
+        return -1;
+    }
+    cal_reset_accum();
+    g_state = stage;
+    return 0;
+}
+
 int svc_calibration_push_sample(uint16_t x, uint16_t y)
 {
-    if ((g_state < OF_CAL_TOP) || (g_state > OF_CAL_CENTER)) {
+    if (!cal_stage_is_sampling(g_state)) {
         return -1;
     }
 
