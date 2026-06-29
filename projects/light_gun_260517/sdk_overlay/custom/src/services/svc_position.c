@@ -2,6 +2,8 @@
 #include "services/svc_calibration.h"
 #include "services/svc_profile.h"
 #include "drivers/drv_ir_cam.h"
+#include "platform/of_time.h"
+#include "osal_debug.h"
 #include <string.h>
 
 #define OF_POS_HIST_SZ 3U
@@ -9,6 +11,56 @@
 #define OF_POS_SCREEN_MAX_Y 1079U
 #define OF_POS_SPRING_DIRECT_DELTA 24
 #define OF_POS_SPRING_MAX_STEP 96
+#define OF_POS_POLL_INTERVAL_US 4800U
+#define OF_POS_LOG_INTERVAL_US 1000000U
+
+#ifndef OF_POS_ENABLE_REMAP
+#ifdef CONFIG_LIGHT_GUN_260517_IR_ENABLE_REMAP
+#define OF_POS_ENABLE_REMAP CONFIG_LIGHT_GUN_260517_IR_ENABLE_REMAP
+#else
+#define OF_POS_ENABLE_REMAP 0
+#endif
+#endif
+
+#ifndef OF_POS_ENABLE_SPRING
+#ifdef CONFIG_LIGHT_GUN_260517_IR_ENABLE_SPRING
+#define OF_POS_ENABLE_SPRING CONFIG_LIGHT_GUN_260517_IR_ENABLE_SPRING
+#else
+#define OF_POS_ENABLE_SPRING 0
+#endif
+#endif
+
+#ifndef OF_POS_ENABLE_SPRING_X
+#ifdef CONFIG_LIGHT_GUN_260517_IR_ENABLE_SPRING_X
+#define OF_POS_ENABLE_SPRING_X CONFIG_LIGHT_GUN_260517_IR_ENABLE_SPRING_X
+#else
+#define OF_POS_ENABLE_SPRING_X 0
+#endif
+#endif
+
+#ifndef OF_POS_ENABLE_SPRING_Y
+#ifdef CONFIG_LIGHT_GUN_260517_IR_ENABLE_SPRING_Y
+#define OF_POS_ENABLE_SPRING_Y CONFIG_LIGHT_GUN_260517_IR_ENABLE_SPRING_Y
+#else
+#define OF_POS_ENABLE_SPRING_Y 0
+#endif
+#endif
+
+#ifndef OF_POS_ENABLE_AVERAGE
+#ifdef CONFIG_LIGHT_GUN_260517_IR_ENABLE_AVERAGE
+#define OF_POS_ENABLE_AVERAGE CONFIG_LIGHT_GUN_260517_IR_ENABLE_AVERAGE
+#else
+#define OF_POS_ENABLE_AVERAGE 0
+#endif
+#endif
+
+#ifndef OF_POS_INVERT_X
+#ifdef CONFIG_LIGHT_GUN_260517_IR_INVERT_X
+#define OF_POS_INVERT_X CONFIG_LIGHT_GUN_260517_IR_INVERT_X
+#else
+#define OF_POS_INVERT_X 1
+#endif
+#endif
 
 static of_pos_sample_t g_sample;
 static uint16_t g_hist_x[OF_POS_HIST_SZ];
@@ -16,6 +68,13 @@ static uint16_t g_hist_y[OF_POS_HIST_SZ];
 static uint8_t g_hist_valid[OF_POS_HIST_SZ];
 static uint8_t g_hist_count;
 static uint8_t g_hist_head;
+static uint8_t g_prev_valid;
+static uint16_t g_prev_raw_x;
+static uint16_t g_prev_raw_y;
+static uint16_t g_prev_map_x;
+static uint16_t g_prev_map_y;
+static uint64_t g_last_poll_us;
+static uint64_t g_last_log_us;
 
 static uint16_t pos_clamp_u16(int32_t value, uint16_t max_value)
 {
@@ -55,6 +114,15 @@ static uint16_t pos_map_axis(uint16_t raw, uint16_t low, uint16_t high, uint16_t
     return (uint16_t)(num / span);
 }
 
+static uint16_t pos_map_axis_linear(uint16_t raw, uint16_t raw_max, uint16_t screen_max)
+{
+    if (raw >= raw_max) {
+        return screen_max;
+    }
+    return (uint16_t)(((uint32_t)raw * (uint32_t)screen_max) / (uint32_t)raw_max);
+}
+
+#if OF_POS_ENABLE_SPRING
 static uint16_t pos_apply_spring_axis(uint16_t target, uint16_t last, uint16_t screen_max)
 {
     int32_t delta = (int32_t)target - (int32_t)last;
@@ -75,6 +143,7 @@ static uint16_t pos_apply_spring_axis(uint16_t target, uint16_t last, uint16_t s
     }
     return pos_clamp_u16((int32_t)last + step, screen_max);
 }
+#endif
 
 static void pos_push_history(uint16_t x, uint16_t y)
 {
@@ -101,12 +170,31 @@ static uint16_t pos_hist_y(uint8_t back)
 
 static void pos_apply_spring_filter(uint16_t *x, uint16_t *y)
 {
+#if !OF_POS_ENABLE_SPRING
+    (void)x;
+    (void)y;
+    return;
+#else
     if ((x == 0) || (y == 0) || (g_hist_count == 0U)) {
         return;
     }
 
-    *x = pos_apply_spring_axis(*x, pos_hist_x(0U), OF_POS_SCREEN_MAX_X);
-    *y = pos_apply_spring_axis(*y, pos_hist_y(0U), OF_POS_SCREEN_MAX_Y);
+    if (OF_POS_ENABLE_SPRING_X) {
+        *x = pos_apply_spring_axis(*x, pos_hist_x(0U), OF_POS_SCREEN_MAX_X);
+    }
+    if (OF_POS_ENABLE_SPRING_Y) {
+        *y = pos_apply_spring_axis(*y, pos_hist_y(0U), OF_POS_SCREEN_MAX_Y);
+    }
+#endif
+}
+
+static uint16_t pos_apply_invert_x(uint16_t x)
+{
+#if OF_POS_INVERT_X
+    return (uint16_t)(OF_POS_SCREEN_MAX_X - x);
+#else
+    return x;
+#endif
 }
 
 void svc_position_init(void)
@@ -122,6 +210,13 @@ void svc_position_reset(void)
     (void)memset(g_hist_valid, 0, sizeof(g_hist_valid));
     g_hist_count = 0U;
     g_hist_head = 0U;
+    g_prev_valid = 0U;
+    g_prev_raw_x = 0U;
+    g_prev_raw_y = 0U;
+    g_prev_map_x = 0U;
+    g_prev_map_y = 0U;
+    g_last_poll_us = 0U;
+    g_last_log_us = 0U;
 }
 
 of_pos_run_mode_t svc_position_get_run_mode(void)
@@ -135,8 +230,10 @@ of_pos_run_mode_t svc_position_get_run_mode(void)
 
 int svc_position_poll(void)
 {
-    uint8_t ir[8] = {0};
+    drv_ir_cam_solution_t ir_solution;
+    uint8_t ir_buf[5] = {0};
     uint32_t got = 0U;
+    uint64_t now_us = of_time_us();
     uint16_t cal_x = 0U;
     uint16_t cal_y = 0U;
     uint16_t top = 0U;
@@ -148,66 +245,124 @@ int svc_position_poll(void)
     of_pos_run_mode_t mode;
     const of_dev_t *ir_dev = drv_ir_cam_get_dev();
 
+    if ((now_us != 0U) && (g_last_poll_us != 0U) &&
+        ((now_us - g_last_poll_us) < OF_POS_POLL_INTERVAL_US)) {
+        return 0;
+    }
+    if (now_us != 0U) {
+        g_last_poll_us = now_us;
+    }
+
     if ((ir_dev == 0) || (ir_dev->ops == 0) || (ir_dev->ops->read == 0)) {
         g_sample.valid = 0U;
         return -1;
     }
-    if (ir_dev->ops->read(ir_dev->priv, ir, sizeof(ir), &got) != 0 || got < 5U) {
+
+    /*
+     * 这里先主动触发一次 IR 采样。
+     * drv_ir_cam_get_latest_solution() 只是取缓存，不会自己发起 I2C 读取。
+     * 如果不先 read，一直拿到的都会是旧结果或全 0 初始化值。
+     */
+    if (ir_dev->ops->read(ir_dev->priv, ir_buf, sizeof(ir_buf), &got) != 0 || got < 5U) {
         g_sample.valid = 0U;
         return -1;
     }
 
-    g_sample.raw_x = (uint16_t)ir[0] | ((uint16_t)ir[1] << 8);
-    g_sample.raw_y = (uint16_t)ir[2] | ((uint16_t)ir[3] << 8);
-    g_sample.valid = (ir[4] & 0x01U) ? 1U : 0U;
+    if (drv_ir_cam_get_latest_solution(&ir_solution) != 0) {
+        g_sample.valid = 0U;
+        return -1;
+    }
+    g_sample.raw_x = ir_solution.raw_center_x;
+    g_sample.raw_y = ir_solution.raw_center_y;
+    g_sample.valid = ir_solution.valid;
+    g_sample.seen_count = ir_solution.seen_count;
+    g_sample.degraded = ir_solution.degraded;
     (void)svc_calibration_get_result(&cal_x, &cal_y);
     (void)svc_calibration_get_offsets(&top, &bottom, &left, &right);
     mode = svc_position_get_run_mode();
     g_sample.run_mode = (uint8_t)mode;
 
-    if (g_sample.valid == 0U) {
+    if ((g_sample.valid == 0U) || (g_sample.seen_count < 2U)) {
+        if (g_prev_valid != 0U) {
+            osal_printk("[svc_position] IR lost, enter OFFSCREEN.\r\n");
+        }
+        g_prev_valid = 0U;
+        g_sample.valid = 0U;
         return 0;
     }
 
-    if ((right > left) && (bottom > top)) {
-        mapped_x = pos_map_axis(g_sample.raw_x, left, right, OF_POS_SCREEN_MAX_X);
-        mapped_y = pos_map_axis(g_sample.raw_y, top, bottom, OF_POS_SCREEN_MAX_Y);
+    if (OF_POS_ENABLE_REMAP) {
+        if ((right > left) && (bottom > top)) {
+            mapped_x = pos_map_axis(g_sample.raw_x, left, right, OF_POS_SCREEN_MAX_X);
+            mapped_y = pos_map_axis(g_sample.raw_y, top, bottom, OF_POS_SCREEN_MAX_Y);
+        } else {
+            mapped_x = pos_apply_center_shift(g_sample.raw_x, cal_x, OF_POS_SCREEN_MAX_X);
+            mapped_y = pos_apply_center_shift(g_sample.raw_y, cal_y, OF_POS_SCREEN_MAX_Y);
+        }
     } else {
-        mapped_x = pos_apply_center_shift(g_sample.raw_x, cal_x, OF_POS_SCREEN_MAX_X);
-        mapped_y = pos_apply_center_shift(g_sample.raw_y, cal_y, OF_POS_SCREEN_MAX_Y);
+        mapped_x = pos_map_axis_linear(g_sample.raw_x, 1023U, OF_POS_SCREEN_MAX_X);
+        mapped_y = pos_map_axis_linear(g_sample.raw_y, 767U, OF_POS_SCREEN_MAX_Y);
     }
 
     pos_apply_spring_filter(&mapped_x, &mapped_y);
 
     pos_push_history(mapped_x, mapped_y);
-    switch (mode) {
-        case OF_POS_RUN_AVERAGE:
-            if (g_hist_count >= 2U) {
-                g_sample.x = (uint16_t)((pos_hist_x(0U) + pos_hist_x(1U)) / 2U);
-                g_sample.y = (uint16_t)((pos_hist_y(0U) + pos_hist_y(1U)) / 2U);
-            } else {
+    if (!OF_POS_ENABLE_AVERAGE) {
+        g_sample.x = mapped_x;
+        g_sample.y = mapped_y;
+    } else {
+        switch (mode) {
+            case OF_POS_RUN_AVERAGE:
+                if (g_hist_count >= 2U) {
+                    g_sample.x = (uint16_t)((pos_hist_x(0U) + pos_hist_x(1U)) / 2U);
+                    g_sample.y = (uint16_t)((pos_hist_y(0U) + pos_hist_y(1U)) / 2U);
+                } else {
+                    g_sample.x = mapped_x;
+                    g_sample.y = mapped_y;
+                }
+                break;
+            case OF_POS_RUN_AVERAGE2:
+                if (g_hist_count >= 3U) {
+                    g_sample.x = (uint16_t)((mapped_x + pos_hist_x(0U) + pos_hist_x(1U) + pos_hist_x(2U)) / 4U);
+                    g_sample.y = (uint16_t)((mapped_y + pos_hist_y(0U) + pos_hist_y(1U) + pos_hist_y(2U)) / 4U);
+                } else if (g_hist_count >= 2U) {
+                    g_sample.x = (uint16_t)((pos_hist_x(0U) + pos_hist_x(1U)) / 2U);
+                    g_sample.y = (uint16_t)((pos_hist_y(0U) + pos_hist_y(1U)) / 2U);
+                } else {
+                    g_sample.x = mapped_x;
+                    g_sample.y = mapped_y;
+                }
+                break;
+            case OF_POS_RUN_NORMAL:
+            default:
                 g_sample.x = mapped_x;
                 g_sample.y = mapped_y;
-            }
-            break;
-        case OF_POS_RUN_AVERAGE2:
-            if (g_hist_count >= 3U) {
-                g_sample.x = (uint16_t)((mapped_x + pos_hist_x(0U) + pos_hist_x(1U) + pos_hist_x(2U)) / 4U);
-                g_sample.y = (uint16_t)((mapped_y + pos_hist_y(0U) + pos_hist_y(1U) + pos_hist_y(2U)) / 4U);
-            } else if (g_hist_count >= 2U) {
-                g_sample.x = (uint16_t)((pos_hist_x(0U) + pos_hist_x(1U)) / 2U);
-                g_sample.y = (uint16_t)((pos_hist_y(0U) + pos_hist_y(1U)) / 2U);
-            } else {
-                g_sample.x = mapped_x;
-                g_sample.y = mapped_y;
-            }
-            break;
-        case OF_POS_RUN_NORMAL:
-        default:
-            g_sample.x = mapped_x;
-            g_sample.y = mapped_y;
-            break;
+                break;
+        }
     }
+
+    g_sample.x = pos_apply_invert_x(g_sample.x);
+
+    if (((now_us == 0U) && ((g_prev_valid == 0U) ||
+        (g_sample.raw_x != g_prev_raw_x) ||
+        (g_sample.raw_y != g_prev_raw_y) ||
+        (g_sample.x != g_prev_map_x) ||
+        (g_sample.y != g_prev_map_y))) ||
+        ((now_us != 0U) &&
+        ((g_last_log_us == 0U) || ((now_us - g_last_log_us) >= OF_POS_LOG_INTERVAL_US)))) {
+        osal_printk("[svc_position] IR valid raw=(%u,%u) map=(%u,%u) mode=%u.\r\n",
+            (unsigned int)g_sample.raw_x,
+            (unsigned int)g_sample.raw_y,
+            (unsigned int)g_sample.x,
+            (unsigned int)g_sample.y,
+            (unsigned int)g_sample.run_mode);
+        g_last_log_us = now_us;
+        g_prev_raw_x = g_sample.raw_x;
+        g_prev_raw_y = g_sample.raw_y;
+        g_prev_map_x = g_sample.x;
+        g_prev_map_y = g_sample.y;
+    }
+    g_prev_valid = 1U;
 
     return 0;
 }

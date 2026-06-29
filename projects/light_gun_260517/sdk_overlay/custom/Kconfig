@@ -5,3 +5,228 @@ config SAMPLE_SUPPORT_DEMO_SLE_UART
     depends on SAMPLE_ENABLE
     help
         Build demo source from external project overlay.
+
+if SAMPLE_SUPPORT_DEMO_SLE_UART
+
+menu "Light Gun 260517 Hardware Config"
+
+config LIGHT_GUN_260517_SOLENOID_GPIO
+    int "Solenoid GPIO"
+    default 6
+    range 0 31
+
+config LIGHT_GUN_260517_SOLENOID_DEFAULT_ON_MS
+    int "Solenoid default ON ms"
+    default 18
+    range 1 50
+
+config LIGHT_GUN_260517_SOLENOID_DEFAULT_OFF_MS
+    int "Solenoid default OFF gap ms"
+    default 70
+    range 1 500
+
+config LIGHT_GUN_260517_SOLENOID_MAX_ON_MS
+    int "Solenoid hard max ON ms"
+    default 25
+    range 1 100
+
+config LIGHT_GUN_260517_RUMBLE_PWM_CHANNEL
+    int "Rumble PWM channel"
+    default 1
+    range 0 11
+
+config LIGHT_GUN_260517_RUMBLE_PWM_GROUP_ID
+    int "Rumble PWM group id"
+    default 0
+    range 0 5
+
+config LIGHT_GUN_260517_RUMBLE_PWM_PIN
+    int "Rumble PWM pin"
+    default 2
+    range 0 31
+
+config LIGHT_GUN_260517_RUMBLE_PWM_PIN_MODE
+    int "Rumble PWM pin mode"
+    default 41
+
+config LIGHT_GUN_260517_RUMBLE_DEFAULT_ACTIVE_MS
+    int "Rumble default active ms"
+    default 120
+    range 1 1000
+
+config LIGHT_GUN_260517_RUMBLE_MAX_ACTIVE_MS
+    int "Rumble hard max active ms"
+    default 300
+    range 1 5000
+
+config LIGHT_GUN_260517_IR_I2C_BUS
+    int "IR I2C bus"
+    default 0
+    range 0 1
+
+config LIGHT_GUN_260517_IR_I2C_ADDR
+    hex "IR I2C address"
+    default 0x58
+
+config LIGHT_GUN_260517_IR_I2C_BAUDRATE
+    int "IR I2C baudrate"
+    default 200000
+    range 10000 400000
+
+config LIGHT_GUN_260517_IR_SCL_PIN
+    int "IR SCL GPIO"
+    default 25
+    range 0 31
+
+config LIGHT_GUN_260517_IR_SDA_PIN
+    int "IR SDA GPIO"
+    default 26
+    range 0 31
+
+config LIGHT_GUN_260517_IR_SCL_PIN_MODE
+    int "IR SCL pin mode"
+    default 26
+
+config LIGHT_GUN_260517_IR_SDA_PIN_MODE
+    int "IR SDA pin mode"
+    default 27
+
+config LIGHT_GUN_260517_IR_SENSITIVITY
+    int "IR sensitivity preset"
+    default 0
+    range 0 2
+
+config LIGHT_GUN_260517_IR_INVERT_X
+    bool "IR X invert"
+    default y
+    help
+        打开后将 IR 的 X 方向左右翻转，行为与 light_gun_driver_test 保持一致。
+
+config LIGHT_GUN_260517_IR_ENABLE_REMAP
+    bool "Enable IR remap by calibration/profile"
+    default n
+    help
+        打开后根据 center 和 top/bottom/left/right 校准结果对 IR 原始坐标做二次映射。
+        调试左右异常时建议先关闭，直接走原始线性映射链路。
+
+config LIGHT_GUN_260517_IR_ENABLE_SPRING
+    bool "Enable IR spring filter"
+    default n
+    help
+        打开后对坐标跳变做缓冲跟随。
+        调试方向不对或拖尾时建议先关闭。
+
+config LIGHT_GUN_260517_IR_ENABLE_SPRING_X
+    bool "Enable IR spring filter on X axis"
+    default n
+    depends on LIGHT_GUN_260517_IR_ENABLE_SPRING
+    help
+        单独控制 X 轴是否启用 spring。
+        左右移动异常时建议先关闭，只保留 Y 轴 spring 做对比。
+
+config LIGHT_GUN_260517_IR_ENABLE_SPRING_Y
+    bool "Enable IR spring filter on Y axis"
+    default y
+    depends on LIGHT_GUN_260517_IR_ENABLE_SPRING
+    help
+        单独控制 Y 轴是否启用 spring。
+        如果只想验证上下方向的缓冲效果，可以只打开这一项。
+
+config LIGHT_GUN_260517_IR_ENABLE_AVERAGE
+    bool "Enable IR average filter by run mode"
+    default n
+    help
+        打开后才会应用 Normal/Average/Average2 三种运行模式的均值滤波。
+        关闭时直接输出当前映射值，便于先排查基础方向问题。
+
+config LIGHT_GUN_260517_LED_PIN
+    int "LED GPIO"
+    default 2
+    range 0 31
+
+config LIGHT_GUN_260517_LED_ACTIVE_HIGH
+    bool "LED active high"
+    default y
+
+config LIGHT_GUN_260517_USB_HID_ENABLE
+    bool "Enable USB HID mouse/keyboard"
+    default y
+
+config LIGHT_GUN_260517_USB_HID_INIT_DELAY_MS
+    int "USB HID init delay ms"
+    default 500
+    range 0 5000
+
+config LIGHT_GUN_260517_USB_HID_PROBE_INTERVAL_MS
+    int "USB HID probe interval ms"
+    default 250
+    range 10 5000
+
+config LIGHT_GUN_260517_USB_HID_LINK_FAIL_THRESHOLD
+    int "USB HID link fail threshold"
+    default 3
+    range 1 20
+
+config LIGHT_GUN_260517_KEY_TRIGGER_PIN
+    int "Trigger key GPIO"
+    default 21
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_A_PIN
+    int "A key GPIO"
+    default 23
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_B_PIN
+    int "B key GPIO"
+    default 22
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_START_PIN
+    int "START key GPIO"
+    default 18
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_SELECT_PIN
+    int "SELECT key GPIO"
+    default 17
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_HOME_PIN
+    int "HOME key GPIO"
+    default 16
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_UP_PIN
+    int "UP key GPIO"
+    default 27
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_DOWN_PIN
+    int "DOWN key GPIO"
+    default 28
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_LEFT_PIN
+    int "LEFT key GPIO"
+    default 29
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_RIGHT_PIN
+    int "RIGHT key GPIO"
+    default 30
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_MIDDLE_PIN
+    int "MIDDLE key GPIO"
+    default 0
+    range 0 255
+
+config LIGHT_GUN_260517_KEY_DEBOUNCE_MS
+    int "Key debounce ms"
+    default 30
+    range 1 200
+
+endmenu
+
+endif
