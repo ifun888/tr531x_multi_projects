@@ -7,6 +7,8 @@
 #define OF_POS_HIST_SZ 3U
 #define OF_POS_SCREEN_MAX_X 1919U
 #define OF_POS_SCREEN_MAX_Y 1079U
+#define OF_POS_SPRING_DIRECT_DELTA 24
+#define OF_POS_SPRING_MAX_STEP 96
 
 static of_pos_sample_t g_sample;
 static uint16_t g_hist_x[OF_POS_HIST_SZ];
@@ -53,6 +55,27 @@ static uint16_t pos_map_axis(uint16_t raw, uint16_t low, uint16_t high, uint16_t
     return (uint16_t)(num / span);
 }
 
+static uint16_t pos_apply_spring_axis(uint16_t target, uint16_t last, uint16_t screen_max)
+{
+    int32_t delta = (int32_t)target - (int32_t)last;
+    int32_t step;
+
+    if ((delta <= OF_POS_SPRING_DIRECT_DELTA) && (delta >= -OF_POS_SPRING_DIRECT_DELTA)) {
+        return target;
+    }
+
+    step = (delta * 70) / 100;
+    if (step == 0) {
+        step = (delta > 0) ? 1 : -1;
+    }
+    if (step > OF_POS_SPRING_MAX_STEP) {
+        step = OF_POS_SPRING_MAX_STEP;
+    } else if (step < -OF_POS_SPRING_MAX_STEP) {
+        step = -OF_POS_SPRING_MAX_STEP;
+    }
+    return pos_clamp_u16((int32_t)last + step, screen_max);
+}
+
 static void pos_push_history(uint16_t x, uint16_t y)
 {
     g_hist_x[g_hist_head] = x;
@@ -74,6 +97,16 @@ static uint16_t pos_hist_y(uint8_t back)
 {
     uint8_t idx = (uint8_t)((g_hist_head + OF_POS_HIST_SZ - 1U - back) % OF_POS_HIST_SZ);
     return g_hist_y[idx];
+}
+
+static void pos_apply_spring_filter(uint16_t *x, uint16_t *y)
+{
+    if ((x == 0) || (y == 0) || (g_hist_count == 0U)) {
+        return;
+    }
+
+    *x = pos_apply_spring_axis(*x, pos_hist_x(0U), OF_POS_SCREEN_MAX_X);
+    *y = pos_apply_spring_axis(*y, pos_hist_y(0U), OF_POS_SCREEN_MAX_Y);
 }
 
 void svc_position_init(void)
@@ -143,6 +176,8 @@ int svc_position_poll(void)
         mapped_x = pos_apply_center_shift(g_sample.raw_x, cal_x, OF_POS_SCREEN_MAX_X);
         mapped_y = pos_apply_center_shift(g_sample.raw_y, cal_y, OF_POS_SCREEN_MAX_Y);
     }
+
+    pos_apply_spring_filter(&mapped_x, &mapped_y);
 
     pos_push_history(mapped_x, mapped_y);
     switch (mode) {
