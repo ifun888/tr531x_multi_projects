@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "sle_device_discovery.h"
+#include "sle_connection_manager.h"
 
 extern uint16_t sle_uart_client_is_connected(void);
 extern int sle_uart_server_send_report_by_handle(const uint8_t *data, uint8_t len);
@@ -32,5 +33,6 @@ void of_sle_sdk_enter_search(void)
 
 void of_sle_sdk_force_reconnect(void)
 {
+    (void)sle_disconnect_all_remote_device();
     (void)sle_start_announce(1U);
 }
