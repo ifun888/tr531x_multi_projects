@@ -5,6 +5,7 @@
 #include "drivers/drv_usb_hid.h"
 #include "of_link_io.h"
 #include "of_wireless_pkt.h"
+#include "osal_debug.h"
 #include <stdint.h>
 
 #ifndef OF_ROLE_DONGLE
@@ -45,6 +46,7 @@ static void of_bridge_sle_to_usb_and_hid(void)
     uint8_t pkt_type = 0U;
     uint8_t payload[OF_WPKT_MAX_PAYLOAD];
     uint32_t payload_len = 0U;
+    static uint8_t s_logged_unsupported[256] = {0};
 
     if (s_wireless_inited == 0U) {
         of_wireless_stream_init(&s_wireless_rx);
@@ -66,12 +68,21 @@ static void of_bridge_sle_to_usb_and_hid(void)
             uint32_t sent = 0U;
             (void)usb->ops->write(usb->priv, payload, payload_len, &sent);
             of_diag_on_tx(sent);
+        } else if ((pkt_type == OF_WPKT_TYPE_TELEMETRY) &&
+            (usb != 0) && (usb->ops != 0) && (usb->ops->write != 0)) {
+            uint32_t sent = 0U;
+            (void)usb->ops->write(usb->priv, payload, payload_len, &sent);
+            of_diag_on_tx(sent);
         } else if ((pkt_type == OF_WPKT_TYPE_HID_MOUSE) && (payload_len == sizeof(of_wpkt_mouse_payload_t))) {
             const of_wpkt_mouse_payload_t *pkt = (const of_wpkt_mouse_payload_t *)payload;
             (void)drv_usb_hid_send_mouse_report(pkt->buttons, pkt->dx, pkt->dy, pkt->wheel);
         } else if ((pkt_type == OF_WPKT_TYPE_HID_KEYBOARD) && (payload_len == sizeof(of_wpkt_keyboard_payload_t))) {
             const of_wpkt_keyboard_payload_t *pkt = (const of_wpkt_keyboard_payload_t *)payload;
             (void)drv_usb_hid_send_keyboard_report(pkt->keys, pkt->key_count);
+        } else if (s_logged_unsupported[pkt_type] == 0U) {
+            s_logged_unsupported[pkt_type] = 1U;
+            osal_printk("[openfire][dongle] unsupported wireless pkt type=%u len=%u\r\n",
+                (unsigned int)pkt_type, (unsigned int)payload_len);
         }
     }
 }
