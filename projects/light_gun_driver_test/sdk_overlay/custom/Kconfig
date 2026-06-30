@@ -388,6 +388,32 @@ endmenu
 
 menu "USB Sim Test Config"
 
+choice LIGHT_GUN_USB_DEVICE_MODE
+    prompt "USB device mode"
+    default LIGHT_GUN_USB_DEVICE_MODE_HID
+    help
+        选择当前测试工程对外枚举的 USB 设备类型。
+
+config LIGHT_GUN_USB_DEVICE_MODE_HID
+    bool "HID only (keyboard + mouse)"
+    select DRIVERS_USB_HID_GADGET
+    select DRIVERS_USB_HID_FUNC_INTERFACE
+    select DRIVERS_USB_COMPOSITE_GADGET
+    help
+        保持当前行为，只枚举 HID 键盘 + 鼠标。
+
+config LIGHT_GUN_USB_DEVICE_MODE_ACM_HID
+    bool "CDC ACM + HID composite"
+    select DRIVERS_USB_SERIAL_GADGET
+    select DRIVERS_USB_HID_GADGET
+    select DRIVERS_USB_HID_FUNC_INTERFACE
+    select DRIVERS_USB_ACM_HID_GADGET
+    select DRIVERS_USB_COMPOSITE_GADGET
+    help
+        额外枚举一个 CDC ACM 串口，同时保留 HID 键盘 + 鼠标。
+
+endchoice
+
 config LIGHT_GUN_USB_SIM_FAKE_IR
     bool "Enable fake IR script"
     default y

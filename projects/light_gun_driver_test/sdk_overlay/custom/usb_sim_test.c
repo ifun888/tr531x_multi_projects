@@ -39,6 +39,14 @@
 #define USB_SIM_HID_INDEX_KEYBOARD 1
 #define USB_SIM_HID_INDEX_MOUSE    2
 
+#if defined(CONFIG_LIGHT_GUN_USB_DEVICE_MODE_ACM_HID)
+#define USB_SIM_DEVICE_TYPE DEV_SER_HID
+#define USB_SIM_DEVICE_MODE_NAME "CDC ACM + HID"
+#else
+#define USB_SIM_DEVICE_TYPE DEV_HID
+#define USB_SIM_DEVICE_MODE_NAME "HID"
+#endif
+
 #define HID_KEY_A          0x04
 #define HID_KEY_B          0x05
 #define HID_KEY_ENTER      0x28
@@ -963,19 +971,20 @@ static int usb_sim_usb_init(void)
     g_usb_sim_ctx.keyboard_index = (uint8_t)keyboard_index;
     g_usb_sim_ctx.mouse_index = (uint8_t)mouse_index;
 
-    if (usbd_set_device_info(DEV_HID, &str_manufacturer, &str_product, &str_serial, dev_id) != 0) {
+    if (usbd_set_device_info(USB_SIM_DEVICE_TYPE, &str_manufacturer, &str_product, &str_serial, dev_id) != 0) {
         osal_printk("[usb_sim_test] usbd_set_device_info failed.\r\n");
         return -1;
     }
 
-    if (usb_init(DEVICE, DEV_HID) != 0) {
-        osal_printk("[usb_sim_test] usb_init(DEV_HID) failed.\r\n");
+    if (usb_init(DEVICE, USB_SIM_DEVICE_TYPE) != 0) {
+        osal_printk("[usb_sim_test] usb_init(%s) failed.\r\n", USB_SIM_DEVICE_MODE_NAME);
         return -1;
     }
 
     osal_msleep(USB_SIM_HID_INIT_DELAY_MS);
     g_usb_sim_ctx.usb_ready = 1U;
-    osal_printk("[usb_sim_test] USB HID ready: keyboard_index=%u mouse_index=%u.\r\n",
+    osal_printk("[usb_sim_test] USB %s ready: keyboard_index=%u mouse_index=%u.\r\n",
+        USB_SIM_DEVICE_MODE_NAME,
         (unsigned int)g_usb_sim_ctx.keyboard_index,
         (unsigned int)g_usb_sim_ctx.mouse_index);
     return 0;
