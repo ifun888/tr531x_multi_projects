@@ -395,12 +395,12 @@ choice LIGHT_GUN_USB_DEVICE_MODE
         选择当前测试工程对外枚举的 USB 设备类型。
 
 config LIGHT_GUN_USB_DEVICE_MODE_HID
-    bool "HID only (keyboard + mouse)"
+    bool "HID only (keyboard + mouse + optional gamepad)"
     select DRIVERS_USB_HID_GADGET
     select DRIVERS_USB_HID_FUNC_INTERFACE
     select DRIVERS_USB_COMPOSITE_GADGET
     help
-        保持当前行为，只枚举 HID 键盘 + 鼠标。
+        只枚举 HID，默认包含键盘 + 鼠标，也可额外追加 gamepad report。
 
 config LIGHT_GUN_USB_DEVICE_MODE_ACM_HID
     bool "CDC ACM + HID composite"
@@ -410,7 +410,34 @@ config LIGHT_GUN_USB_DEVICE_MODE_ACM_HID
     select DRIVERS_USB_ACM_HID_GADGET
     select DRIVERS_USB_COMPOSITE_GADGET
     help
-        额外枚举一个 CDC ACM 串口，同时保留 HID 键盘 + 鼠标。
+        额外枚举一个 CDC ACM 串口，同时保留 HID 键盘/鼠标/可选 gamepad。
+
+endchoice
+
+config LIGHT_GUN_USB_HID_GAMEPAD
+    bool "Enable HID gamepad report"
+    default y
+    help
+        在现有单 HID 接口上追加一个 Gamepad Report ID。
+        不新增 USB interface，也不新增 HID IN endpoint。
+
+choice LIGHT_GUN_USB_OUTPUT_MODE
+    prompt "USB pointer output mode"
+    default LIGHT_GUN_USB_OUTPUT_MODE_MOUSE_GAMEPAD if LIGHT_GUN_USB_HID_GAMEPAD
+    default LIGHT_GUN_USB_OUTPUT_MODE_MOUSE_ONLY
+    help
+        决定 IR / Trigger 这类“指向类输入”发鼠标、发 gamepad，还是两者同时发。
+
+config LIGHT_GUN_USB_OUTPUT_MODE_MOUSE_ONLY
+    bool "Mouse only"
+
+config LIGHT_GUN_USB_OUTPUT_MODE_GAMEPAD_ONLY
+    bool "Gamepad only"
+    depends on LIGHT_GUN_USB_HID_GAMEPAD
+
+config LIGHT_GUN_USB_OUTPUT_MODE_MOUSE_GAMEPAD
+    bool "Mouse + gamepad"
+    depends on LIGHT_GUN_USB_HID_GAMEPAD
 
 endchoice
 
@@ -465,6 +492,14 @@ config LIGHT_GUN_USB_SIM_USE_IR_LIVE_MOUSE
         打开后，USB 鼠标移动和屏内/屏外状态由真实 IR 解算结果驱动。
         为避免两套鼠标业务互相打架，脚本化 mouse move / mouse click /
         fake IR / trigger reference 会在运行时自动停用。
+
+config LIGHT_GUN_USB_SIM_USE_IR_LIVE_GAMEPAD
+    bool "Use live IR solve to drive HID gamepad"
+    default y
+    depends on LIGHT_GUN_USB_HID_GAMEPAD
+    help
+        打开后，真实 IR 解算结果会直接映射到 gamepad 绝对轴 X/Y。
+        这条链路主要给模拟器和双枪场景验证使用。
 
 config LIGHT_GUN_USB_DEBUG
     bool "Enable extra USB bring-up debug log"

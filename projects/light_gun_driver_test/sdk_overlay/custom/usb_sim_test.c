@@ -24,11 +24,16 @@
 #define USB_SIM_CDC_TASK_PRIO                  24
 #define USB_SIM_KEYBOARD_REPORT_LEN            9U
 #define USB_SIM_MOUSE_REPORT_LEN               5U
+#define USB_SIM_GAMEPAD_REPORT_LEN             12U
 #define USB_SIM_MAX_KEYS                       6U
 #define USB_SIM_INVALID_PIN                    255U
 #define USB_SIM_LED_COUNT                      3U
 #define USB_SIM_LINK_FAIL_THRESHOLD            3U
 #define USB_SIM_CDC_ECHO_BUF_LEN               64U
+#define USB_SIM_GAMEPAD_INVALID_BUTTON         0xFFU
+#define USB_SIM_GAMEPAD_HAT_NEUTRAL            8U
+#define USB_SIM_FAKE_IR_AXIS_MAX_X             640U
+#define USB_SIM_FAKE_IR_AXIS_MAX_Y             360U
 
 #define input(size)             (0x80 | (size))
 #define output(size)            (0x90 | (size))
@@ -46,6 +51,7 @@
 
 #define USB_SIM_HID_REPORT_ID_KEYBOARD 0x01
 #define USB_SIM_HID_REPORT_ID_MOUSE    0x04
+#define USB_SIM_HID_REPORT_ID_GAMEPAD  0x05
 #define USB_SIM_HID_PROTOCOL_COMPOSITE 0
 
 #if defined(CONFIG_LIGHT_GUN_USB_DEVICE_MODE_ACM_HID)
@@ -65,6 +71,24 @@
 #define HID_KEY_LEFT       0x50
 #define HID_KEY_DOWN       0x51
 #define HID_KEY_UP         0x52
+
+typedef enum {
+    USB_SIM_GAMEPAD_BTN_PRIMARY = 0,
+    USB_SIM_GAMEPAD_BTN_SECONDARY,
+    USB_SIM_GAMEPAD_BTN_TERTIARY,
+    USB_SIM_GAMEPAD_BTN_QUATERNARY,
+    USB_SIM_GAMEPAD_BTN_START = 11,
+    USB_SIM_GAMEPAD_BTN_SELECT = 10,
+    USB_SIM_GAMEPAD_BTN_HOME = 12,
+} usb_sim_gamepad_button_t;
+
+typedef enum {
+    USB_SIM_DPAD_NONE = 0,
+    USB_SIM_DPAD_UP,
+    USB_SIM_DPAD_DOWN,
+    USB_SIM_DPAD_LEFT,
+    USB_SIM_DPAD_RIGHT,
+} usb_sim_dpad_dir_t;
 
 typedef union {
     struct {
@@ -91,6 +115,16 @@ typedef struct {
     uint8_t key[USB_SIM_MAX_KEYS];
 } usb_sim_keyboard_report_t;
 
+typedef struct __attribute__((packed)) {
+    uint8_t kind;
+    int16_t x;
+    int16_t y;
+    int16_t rx;
+    int16_t ry;
+    uint8_t hat;
+    uint16_t buttons;
+} usb_sim_gamepad_report_t;
+
 typedef struct {
     int16_t x;
     int16_t y;
@@ -110,6 +144,8 @@ typedef struct {
     pin_t pin;
     usb_sim_btn_role_t role;
     uint8_t key_code;
+    uint8_t gamepad_button;
+    uint8_t dpad_dir;
     uint8_t enabled;
     uint8_t stable_pressed;
     uint8_t raw_pressed;
@@ -123,6 +159,16 @@ typedef struct {
     uint8_t keyboard_keys[USB_SIM_MAX_KEYS];
     uint8_t keyboard_key_count;
     uint8_t trigger_offscreen_active;
+    uint8_t dpad_up;
+    uint8_t dpad_down;
+    uint8_t dpad_left;
+    uint8_t dpad_right;
+    uint8_t gamepad_hat;
+    uint16_t gamepad_buttons;
+    int16_t gamepad_x;
+    int16_t gamepad_y;
+    int16_t gamepad_rx;
+    int16_t gamepad_ry;
 } usb_sim_report_state_t;
 
 typedef struct {
@@ -208,6 +254,34 @@ static const uint8_t g_usb_sim_report_desc_hid[] = {
     input(1),           0x06,
     end_collection(0),
     end_collection(0),
+    usage_page(1),      0x01,
+    usage(1),           0x05,
+    collection(1),      0x01,
+    report_id(1),       USB_SIM_HID_REPORT_ID_GAMEPAD,
+    usage(1),           0x30,
+    usage(1),           0x31,
+    usage(1),           0x33,
+    usage(1),           0x34,
+    logical_minimum(2), 0x01, 0x80,
+    logical_maximum(2), 0xFF, 0x7F,
+    report_count(1),    0x04,
+    report_size(1),     0x10,
+    input(1),           0x02,
+    usage(1),           0x39,
+    logical_minimum(1), 0x00,
+    logical_maximum(1), 0x08,
+    report_count(1),    0x01,
+    report_size(1),     0x08,
+    input(1),           0x42,
+    usage_page(1),      0x09,
+    usage_minimum(1),   0x01,
+    usage_maximum(1),   0x10,
+    logical_minimum(1), 0x00,
+    logical_maximum(1), 0x01,
+    report_count(1),    0x10,
+    report_size(1),     0x01,
+    input(1),           0x02,
+    end_collection(0),
 };
 
 static const usb_sim_ir_point_t g_usb_sim_ir_script[] = {
@@ -222,18 +296,18 @@ static const usb_sim_ir_point_t g_usb_sim_ir_script[] = {
 };
 
 static usb_sim_button_t g_usb_sim_buttons[] = {
-    { "TRIGGER", (pin_t)USB_SIM_TEST_BTN_TRIGGER_PIN, USB_BTN_ROLE_TRIGGER, 0, 1, 0, 0, 0 },
-    { "A",       (pin_t)USB_SIM_TEST_BTN_A_PIN,       USB_BTN_ROLE_MOUSE_RIGHT, 0, 1, 0, 0, 0 },
-    { "B",       (pin_t)USB_SIM_TEST_BTN_B_PIN,       USB_BTN_ROLE_MOUSE_MIDDLE, 0, 1, 0, 0, 0 },
-    { "START",   (pin_t)USB_SIM_TEST_BTN_START_PIN,   USB_BTN_ROLE_KEYBOARD, HID_KEY_ENTER, 1, 0, 0, 0 },
-    { "SELECT",  (pin_t)USB_SIM_TEST_BTN_SELECT_PIN,  USB_BTN_ROLE_KEYBOARD, HID_KEY_ESC, 1, 0, 0, 0 },
-    { "HOME",    (pin_t)USB_SIM_TEST_BTN_HOME_PIN,    USB_BTN_ROLE_KEYBOARD, HID_KEY_HOME, 1, 0, 0, 0 },
-    { "GAMEPAD", (pin_t)USB_SIM_TEST_BTN_GAMEPAD_PIN, USB_BTN_ROLE_RESERVED, 0, 0, 0, 0, 0 },
-    { "KEY_UP",  (pin_t)USB_SIM_TEST_BTN_UP_PIN,      USB_BTN_ROLE_KEYBOARD, HID_KEY_UP, 1, 0, 0, 0 },
-    { "KEY_DOWN",(pin_t)USB_SIM_TEST_BTN_DOWN_PIN,    USB_BTN_ROLE_KEYBOARD, HID_KEY_DOWN, 1, 0, 0, 0 },
-    { "KEY_LEFT",(pin_t)USB_SIM_TEST_BTN_LEFT_PIN,    USB_BTN_ROLE_KEYBOARD, HID_KEY_LEFT, 1, 0, 0, 0 },
-    { "KEY_RIGHT",(pin_t)USB_SIM_TEST_BTN_RIGHT_PIN,  USB_BTN_ROLE_KEYBOARD, HID_KEY_RIGHT, 1, 0, 0, 0 },
-    { "KEY_MIDDLE",(pin_t)USB_SIM_TEST_BTN_MIDDLE_PIN,USB_BTN_ROLE_KEYBOARD, HID_KEY_B, 1, 0, 0, 0 },
+    { "TRIGGER", (pin_t)USB_SIM_TEST_BTN_TRIGGER_PIN, USB_BTN_ROLE_TRIGGER, 0, USB_SIM_GAMEPAD_BTN_PRIMARY, USB_SIM_DPAD_NONE, 1, 0, 0, 0 },
+    { "A",       (pin_t)USB_SIM_TEST_BTN_A_PIN,       USB_BTN_ROLE_MOUSE_RIGHT, 0, USB_SIM_GAMEPAD_BTN_SECONDARY, USB_SIM_DPAD_NONE, 1, 0, 0, 0 },
+    { "B",       (pin_t)USB_SIM_TEST_BTN_B_PIN,       USB_BTN_ROLE_MOUSE_MIDDLE, 0, USB_SIM_GAMEPAD_BTN_TERTIARY, USB_SIM_DPAD_NONE, 1, 0, 0, 0 },
+    { "START",   (pin_t)USB_SIM_TEST_BTN_START_PIN,   USB_BTN_ROLE_KEYBOARD, HID_KEY_ENTER, USB_SIM_GAMEPAD_BTN_START, USB_SIM_DPAD_NONE, 1, 0, 0, 0 },
+    { "SELECT",  (pin_t)USB_SIM_TEST_BTN_SELECT_PIN,  USB_BTN_ROLE_KEYBOARD, HID_KEY_ESC, USB_SIM_GAMEPAD_BTN_SELECT, USB_SIM_DPAD_NONE, 1, 0, 0, 0 },
+    { "HOME",    (pin_t)USB_SIM_TEST_BTN_HOME_PIN,    USB_BTN_ROLE_KEYBOARD, HID_KEY_HOME, USB_SIM_GAMEPAD_BTN_HOME, USB_SIM_DPAD_NONE, 1, 0, 0, 0 },
+    { "GAMEPAD", (pin_t)USB_SIM_TEST_BTN_GAMEPAD_PIN, USB_BTN_ROLE_RESERVED, 0, USB_SIM_GAMEPAD_BTN_QUATERNARY, USB_SIM_DPAD_NONE, 1, 0, 0, 0 },
+    { "KEY_UP",  (pin_t)USB_SIM_TEST_BTN_UP_PIN,      USB_BTN_ROLE_KEYBOARD, HID_KEY_UP, USB_SIM_GAMEPAD_INVALID_BUTTON, USB_SIM_DPAD_UP, 1, 0, 0, 0 },
+    { "KEY_DOWN",(pin_t)USB_SIM_TEST_BTN_DOWN_PIN,    USB_BTN_ROLE_KEYBOARD, HID_KEY_DOWN, USB_SIM_GAMEPAD_INVALID_BUTTON, USB_SIM_DPAD_DOWN, 1, 0, 0, 0 },
+    { "KEY_LEFT",(pin_t)USB_SIM_TEST_BTN_LEFT_PIN,    USB_BTN_ROLE_KEYBOARD, HID_KEY_LEFT, USB_SIM_GAMEPAD_INVALID_BUTTON, USB_SIM_DPAD_LEFT, 1, 0, 0, 0 },
+    { "KEY_RIGHT",(pin_t)USB_SIM_TEST_BTN_RIGHT_PIN,  USB_BTN_ROLE_KEYBOARD, HID_KEY_RIGHT, USB_SIM_GAMEPAD_INVALID_BUTTON, USB_SIM_DPAD_RIGHT, 1, 0, 0, 0 },
+    { "KEY_MIDDLE",(pin_t)USB_SIM_TEST_BTN_MIDDLE_PIN,USB_BTN_ROLE_KEYBOARD, HID_KEY_B, USB_SIM_GAMEPAD_INVALID_BUTTON, USB_SIM_DPAD_NONE, 1, 0, 0, 0 },
 };
 
 static usb_sim_ctx_t g_usb_sim_ctx = {
@@ -243,6 +317,16 @@ static usb_sim_ctx_t g_usb_sim_ctx = {
 #if defined(CONFIG_LIGHT_GUN_USB_DEVICE_MODE_ACM_HID) && defined(CONFIG_LIGHT_GUN_USB_CDC_ECHO_TEST)
 static char g_usb_sim_cdc_echo_buf[USB_SIM_CDC_ECHO_BUF_LEN];
 #endif
+
+#if USB_SIM_TEST_ENABLE_HID_GAMEPAD
+#define USB_SIM_DEVICE_PID 0x0022
+#else
+#define USB_SIM_DEVICE_PID 0x0021
+#endif
+
+static bool usb_sim_enable_ir_live_mouse(void);
+static bool usb_sim_enable_ir_live_gamepad(void);
+static bool usb_sim_enable_ir_live_any(void);
 
 static int8_t usb_sim_limit_to_i8(int32_t value)
 {
@@ -255,11 +339,44 @@ static int8_t usb_sim_limit_to_i8(int32_t value)
     return (int8_t)value;
 }
 
-static bool usb_sim_enable_fake_ir(void)
+static int16_t usb_sim_limit_to_i16(int32_t value)
 {
-#if USB_SIM_TEST_ENABLE_IR_LIVE_MOUSE
+    if (value > 32767) {
+        return 32767;
+    }
+    if (value < -32767) {
+        return -32767;
+    }
+    return (int16_t)value;
+}
+
+static bool usb_sim_output_mouse_enabled(void)
+{
+#if USB_SIM_TEST_OUTPUT_MODE == USB_SIM_TEST_OUTPUT_MODE_GAMEPAD_ONLY
+    return false;
+#else
+    return true;
+#endif
+}
+
+static bool usb_sim_output_gamepad_enabled(void)
+{
+#if USB_SIM_TEST_ENABLE_HID_GAMEPAD
+#if USB_SIM_TEST_OUTPUT_MODE == USB_SIM_TEST_OUTPUT_MODE_MOUSE_ONLY
+    return false;
+#else
+    return true;
+#endif
+#else
     return false;
 #endif
+}
+
+static bool usb_sim_enable_fake_ir(void)
+{
+    if (usb_sim_enable_ir_live_any()) {
+        return false;
+    }
 #if USB_SIM_TEST_ENABLE_FAKE_IR
     return true;
 #else
@@ -278,9 +395,12 @@ static bool usb_sim_enable_fake_led(void)
 
 static bool usb_sim_enable_script_mouse_move(void)
 {
-#if USB_SIM_TEST_ENABLE_IR_LIVE_MOUSE
-    return false;
-#endif
+    if (!usb_sim_output_mouse_enabled()) {
+        return false;
+    }
+    if (usb_sim_enable_ir_live_any()) {
+        return false;
+    }
 #if USB_SIM_TEST_ENABLE_SCRIPT_MOUSE_MOVE
     return true;
 #else
@@ -290,9 +410,12 @@ static bool usb_sim_enable_script_mouse_move(void)
 
 static bool usb_sim_enable_script_mouse_click(void)
 {
-#if USB_SIM_TEST_ENABLE_IR_LIVE_MOUSE
-    return false;
-#endif
+    if (!usb_sim_output_mouse_enabled()) {
+        return false;
+    }
+    if (usb_sim_enable_ir_live_any()) {
+        return false;
+    }
 #if USB_SIM_TEST_ENABLE_SCRIPT_MOUSE_CLICK
     return true;
 #else
@@ -320,9 +443,9 @@ static bool usb_sim_enable_gpio_passthrough(void)
 
 static bool usb_sim_enable_trigger_ref(void)
 {
-#if USB_SIM_TEST_ENABLE_IR_LIVE_MOUSE
-    return false;
-#endif
+    if (usb_sim_enable_ir_live_any()) {
+        return false;
+    }
 #if USB_SIM_TEST_ENABLE_TRIGGER_REF
     return true;
 #else
@@ -332,11 +455,34 @@ static bool usb_sim_enable_trigger_ref(void)
 
 static bool usb_sim_enable_ir_live_mouse(void)
 {
+    if (!usb_sim_output_mouse_enabled()) {
+        return false;
+    }
 #if USB_SIM_TEST_ENABLE_IR_LIVE_MOUSE
     return true;
 #else
     return false;
 #endif
+}
+
+static bool usb_sim_enable_ir_live_gamepad(void)
+{
+#if USB_SIM_TEST_ENABLE_IR_LIVE_GAMEPAD
+    return true;
+#else
+    return false;
+#endif
+}
+
+static bool usb_sim_enable_ir_live_any(void)
+{
+    if (usb_sim_output_mouse_enabled() && usb_sim_enable_ir_live_mouse()) {
+        return true;
+    }
+    if (usb_sim_output_gamepad_enabled() && usb_sim_enable_ir_live_gamepad()) {
+        return true;
+    }
+    return false;
 }
 
 static bool usb_sim_need_keyboard_path(void)
@@ -352,6 +498,9 @@ static bool usb_sim_need_keyboard_path(void)
 
 static bool usb_sim_need_mouse_path(void)
 {
+    if (!usb_sim_output_mouse_enabled()) {
+        return false;
+    }
     if (usb_sim_enable_script_mouse_move()) {
         return true;
     }
@@ -364,9 +513,29 @@ static bool usb_sim_need_mouse_path(void)
     return false;
 }
 
+static bool usb_sim_need_gamepad_path(void)
+{
+    if (!usb_sim_output_gamepad_enabled()) {
+        return false;
+    }
+    if (usb_sim_enable_fake_ir()) {
+        return true;
+    }
+    if (usb_sim_enable_gpio_passthrough()) {
+        return true;
+    }
+    if (usb_sim_enable_ir_live_gamepad()) {
+        return true;
+    }
+    if (usb_sim_enable_trigger_ref()) {
+        return true;
+    }
+    return false;
+}
+
 static void usb_sim_report_log_case(void)
 {
-    osal_printk("[usb_sim_test] feature_ir=%u feature_led=%u feature_mouse_move=%u feature_mouse_click=%u feature_keyboard=%u feature_gpio=%u feature_trigger_ref=%u poll=%u ms debounce=%u ms script_step=%u ms offscreen_mode=%u.\r\n",
+    osal_printk("[usb_sim_test] feature_ir=%u feature_led=%u feature_mouse_move=%u feature_mouse_click=%u feature_keyboard=%u feature_gpio=%u feature_trigger_ref=%u feature_gamepad=%u output_mode=%u poll=%u ms debounce=%u ms script_step=%u ms offscreen_mode=%u.\r\n",
         (unsigned int)usb_sim_enable_fake_ir(),
         (unsigned int)usb_sim_enable_fake_led(),
         (unsigned int)usb_sim_enable_script_mouse_move(),
@@ -374,12 +543,15 @@ static void usb_sim_report_log_case(void)
         (unsigned int)usb_sim_enable_script_keyboard(),
         (unsigned int)usb_sim_enable_gpio_passthrough(),
         (unsigned int)usb_sim_enable_trigger_ref(),
+        (unsigned int)usb_sim_output_gamepad_enabled(),
+        (unsigned int)USB_SIM_TEST_OUTPUT_MODE,
         (unsigned int)USB_SIM_TEST_POLL_MS,
         (unsigned int)USB_SIM_TEST_DEBOUNCE_MS,
         (unsigned int)USB_SIM_TEST_SCRIPT_STEP_MS,
         (unsigned int)USB_SIM_TEST_OFFSCREEN_MODE);
-    osal_printk("[usb_sim_test] feature_ir_live_mouse=%u.\r\n",
-        (unsigned int)usb_sim_enable_ir_live_mouse());
+    osal_printk("[usb_sim_test] feature_ir_live_mouse=%u feature_ir_live_gamepad=%u.\r\n",
+        (unsigned int)usb_sim_enable_ir_live_mouse(),
+        (unsigned int)usb_sim_enable_ir_live_gamepad());
 }
 
 static void usb_sim_mouse_send(int8_t dx, int8_t dy, int8_t wheel)
@@ -478,6 +650,162 @@ static int usb_sim_keyboard_send_checked(void)
     return (ret < 0) ? -1 : 0;
 }
 
+static uint8_t usb_sim_gamepad_compose_hat(void)
+{
+    if (g_usb_sim_ctx.report_state.dpad_up != 0U) {
+        if (g_usb_sim_ctx.report_state.dpad_left != 0U) {
+            return 7U;
+        }
+        if (g_usb_sim_ctx.report_state.dpad_right != 0U) {
+            return 1U;
+        }
+        return 0U;
+    }
+
+    if (g_usb_sim_ctx.report_state.dpad_down != 0U) {
+        if (g_usb_sim_ctx.report_state.dpad_left != 0U) {
+            return 5U;
+        }
+        if (g_usb_sim_ctx.report_state.dpad_right != 0U) {
+            return 3U;
+        }
+        return 4U;
+    }
+
+    if (g_usb_sim_ctx.report_state.dpad_left != 0U) {
+        return 6U;
+    }
+    if (g_usb_sim_ctx.report_state.dpad_right != 0U) {
+        return 2U;
+    }
+    return USB_SIM_GAMEPAD_HAT_NEUTRAL;
+}
+
+static void usb_sim_gamepad_send(void)
+{
+    usb_sim_gamepad_report_t rpt;
+    int32_t ret;
+
+    if (!usb_sim_output_gamepad_enabled() || g_usb_sim_ctx.usb_ready == 0U) {
+        return;
+    }
+
+    rpt.kind = USB_SIM_HID_REPORT_ID_GAMEPAD;
+    rpt.x = g_usb_sim_ctx.report_state.gamepad_x;
+    rpt.y = g_usb_sim_ctx.report_state.gamepad_y;
+    rpt.rx = g_usb_sim_ctx.report_state.gamepad_rx;
+    rpt.ry = g_usb_sim_ctx.report_state.gamepad_ry;
+    rpt.hat = g_usb_sim_ctx.report_state.gamepad_hat;
+    rpt.buttons = g_usb_sim_ctx.report_state.gamepad_buttons;
+
+    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.hid_index, (char *)&rpt, USB_SIM_GAMEPAD_REPORT_LEN);
+    if (ret == -1) {
+        osal_printk("[usb_sim_test] gamepad report send failed.\r\n");
+    }
+}
+
+static int usb_sim_gamepad_send_checked(void)
+{
+    usb_sim_gamepad_report_t rpt;
+    int32_t ret;
+
+    if (!usb_sim_output_gamepad_enabled() || g_usb_sim_ctx.usb_ready == 0U) {
+        return -1;
+    }
+
+    rpt.kind = USB_SIM_HID_REPORT_ID_GAMEPAD;
+    rpt.x = g_usb_sim_ctx.report_state.gamepad_x;
+    rpt.y = g_usb_sim_ctx.report_state.gamepad_y;
+    rpt.rx = g_usb_sim_ctx.report_state.gamepad_rx;
+    rpt.ry = g_usb_sim_ctx.report_state.gamepad_ry;
+    rpt.hat = g_usb_sim_ctx.report_state.gamepad_hat;
+    rpt.buttons = g_usb_sim_ctx.report_state.gamepad_buttons;
+
+    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.hid_index, (char *)&rpt, USB_SIM_GAMEPAD_REPORT_LEN);
+    return (ret < 0) ? -1 : 0;
+}
+
+static void usb_sim_gamepad_set_button(uint8_t button, uint8_t pressed)
+{
+    uint16_t mask;
+
+    if (!usb_sim_output_gamepad_enabled() || button >= 16U) {
+        return;
+    }
+
+    mask = (uint16_t)(1U << button);
+    if (pressed != 0U) {
+        g_usb_sim_ctx.report_state.gamepad_buttons |= mask;
+    } else {
+        g_usb_sim_ctx.report_state.gamepad_buttons &= (uint16_t)(~mask);
+    }
+    usb_sim_gamepad_send();
+}
+
+static void usb_sim_gamepad_update_dpad(uint8_t dpad_dir, uint8_t pressed)
+{
+    if (!usb_sim_output_gamepad_enabled()) {
+        return;
+    }
+
+    switch (dpad_dir) {
+        case USB_SIM_DPAD_UP:
+            g_usb_sim_ctx.report_state.dpad_up = pressed;
+            break;
+        case USB_SIM_DPAD_DOWN:
+            g_usb_sim_ctx.report_state.dpad_down = pressed;
+            break;
+        case USB_SIM_DPAD_LEFT:
+            g_usb_sim_ctx.report_state.dpad_left = pressed;
+            break;
+        case USB_SIM_DPAD_RIGHT:
+            g_usb_sim_ctx.report_state.dpad_right = pressed;
+            break;
+        default:
+            return;
+    }
+
+    g_usb_sim_ctx.report_state.gamepad_hat = usb_sim_gamepad_compose_hat();
+    usb_sim_gamepad_send();
+}
+
+static int16_t usb_sim_map_abs_axis(uint32_t value, uint32_t max_value)
+{
+    int64_t scaled;
+
+    if (max_value == 0U) {
+        return 0;
+    }
+    if (value > max_value) {
+        value = max_value;
+    }
+
+    scaled = ((int64_t)value * 65534LL) / (int64_t)max_value;
+    scaled -= 32767LL;
+    return usb_sim_limit_to_i16((int32_t)scaled);
+}
+
+static void usb_sim_gamepad_set_aim_xy(uint32_t x, uint32_t y, uint32_t max_x, uint32_t max_y)
+{
+    int16_t mapped_x;
+    int16_t mapped_y;
+
+    if (!usb_sim_output_gamepad_enabled()) {
+        return;
+    }
+
+    mapped_x = usb_sim_map_abs_axis(x, max_x);
+    mapped_y = usb_sim_map_abs_axis(y, max_y);
+    if (g_usb_sim_ctx.report_state.gamepad_x == mapped_x &&
+        g_usb_sim_ctx.report_state.gamepad_y == mapped_y) {
+        return;
+    }
+
+    g_usb_sim_ctx.report_state.gamepad_x = mapped_x;
+    g_usb_sim_ctx.report_state.gamepad_y = mapped_y;
+    usb_sim_gamepad_send();
+}
+
 static void usb_sim_reset_runtime_state(void)
 {
     uint32_t i;
@@ -495,6 +823,16 @@ static void usb_sim_reset_runtime_state(void)
     g_usb_sim_ctx.report_state.mouse_middle = 0U;
     g_usb_sim_ctx.report_state.keyboard_key_count = 0U;
     g_usb_sim_ctx.report_state.trigger_offscreen_active = 0U;
+    g_usb_sim_ctx.report_state.dpad_up = 0U;
+    g_usb_sim_ctx.report_state.dpad_down = 0U;
+    g_usb_sim_ctx.report_state.dpad_left = 0U;
+    g_usb_sim_ctx.report_state.dpad_right = 0U;
+    g_usb_sim_ctx.report_state.gamepad_hat = USB_SIM_GAMEPAD_HAT_NEUTRAL;
+    g_usb_sim_ctx.report_state.gamepad_buttons = 0U;
+    g_usb_sim_ctx.report_state.gamepad_x = 0;
+    g_usb_sim_ctx.report_state.gamepad_y = 0;
+    g_usb_sim_ctx.report_state.gamepad_rx = 0;
+    g_usb_sim_ctx.report_state.gamepad_ry = 0;
 
     for (i = 0; i < USB_SIM_MAX_KEYS; i++) {
         g_usb_sim_ctx.report_state.keyboard_keys[i] = 0U;
@@ -550,11 +888,20 @@ static int usb_sim_probe_link_once(void)
         }
     }
 
-    if (!usb_sim_need_keyboard_path() && !usb_sim_need_mouse_path()) {
+    if (usb_sim_need_gamepad_path()) {
+        if (usb_sim_gamepad_send_checked() == 0) {
+            return 0;
+        }
+    }
+
+    if (!usb_sim_need_keyboard_path() && !usb_sim_need_mouse_path() && !usb_sim_need_gamepad_path()) {
         if (usb_sim_keyboard_send_checked() == 0) {
             return 0;
         }
         if (usb_sim_mouse_send_checked(0, 0, 0) == 0) {
+            return 0;
+        }
+        if (usb_sim_gamepad_send_checked() == 0) {
             return 0;
         }
     }
@@ -633,11 +980,15 @@ static void usb_sim_set_mouse_button(uint8_t left, uint8_t right, uint8_t middle
     g_usb_sim_ctx.report_state.mouse_left = left;
     g_usb_sim_ctx.report_state.mouse_right = right;
     g_usb_sim_ctx.report_state.mouse_middle = middle;
-    usb_sim_mouse_send(0, 0, 0);
+    if (usb_sim_output_mouse_enabled()) {
+        usb_sim_mouse_send(0, 0, 0);
+    }
 }
 
 static void usb_sim_trigger_press(void)
 {
+    usb_sim_gamepad_set_button(USB_SIM_GAMEPAD_BTN_PRIMARY, 1U);
+
     if (g_usb_sim_ctx.current_onscreen != 0U) {
         g_usb_sim_ctx.report_state.trigger_offscreen_active = 0U;
         osal_printk("[usb_sim_test] trigger press -> onscreen fire -> mouse left down.\r\n");
@@ -657,6 +1008,8 @@ static void usb_sim_trigger_press(void)
 
 static void usb_sim_trigger_release(void)
 {
+    usb_sim_gamepad_set_button(USB_SIM_GAMEPAD_BTN_PRIMARY, 0U);
+
     if (g_usb_sim_ctx.report_state.trigger_offscreen_active != 0U) {
         g_usb_sim_ctx.report_state.trigger_offscreen_active = 0U;
         osal_printk("[usb_sim_test] trigger release -> offscreen button up.\r\n");
@@ -704,6 +1057,10 @@ static void usb_sim_send_fake_ir_point(const usb_sim_ir_point_t *point)
         g_usb_sim_ctx.prev_ir_x = (uint32_t)point->x;
         g_usb_sim_ctx.prev_ir_y = (uint32_t)point->y;
         g_usb_sim_ctx.prev_ir_valid = 1U;
+        if (usb_sim_output_gamepad_enabled()) {
+            usb_sim_gamepad_set_aim_xy((uint32_t)point->x, (uint32_t)point->y,
+                USB_SIM_FAKE_IR_AXIS_MAX_X, USB_SIM_FAKE_IR_AXIS_MAX_Y);
+        }
         return;
     }
 
@@ -714,6 +1071,11 @@ static void usb_sim_send_fake_ir_point(const usb_sim_ir_point_t *point)
 
     g_usb_sim_ctx.prev_ir_x = (uint32_t)point->x;
     g_usb_sim_ctx.prev_ir_y = (uint32_t)point->y;
+
+    if (usb_sim_output_gamepad_enabled()) {
+        usb_sim_gamepad_set_aim_xy((uint32_t)point->x, (uint32_t)point->y,
+            USB_SIM_FAKE_IR_AXIS_MAX_X, USB_SIM_FAKE_IR_AXIS_MAX_Y);
+    }
 
     /*
      * fake IR 和 trigger 参考模式只负责“生成瞄准状态/坐标”。
@@ -765,6 +1127,26 @@ static void usb_sim_update_live_ir_mouse(void)
     }
 
     usb_sim_mouse_send(usb_sim_limit_to_i8(dx), usb_sim_limit_to_i8(dy), 0);
+}
+
+static void usb_sim_update_live_ir_gamepad(void)
+{
+    ir_test_runtime_solution_t solution;
+
+    if (!usb_sim_enable_ir_live_gamepad()) {
+        return;
+    }
+    if (ir_test_get_latest_solution(&solution) != 0) {
+        return;
+    }
+
+    g_usb_sim_ctx.current_onscreen = (solution.valid != 0U && solution.seen_count >= 2U) ? 1U : 0U;
+    if (solution.valid == 0U || solution.seen_count < 2U || solution.onscreen == 0U) {
+        return;
+    }
+
+    usb_sim_gamepad_set_aim_xy(solution.screen_x, solution.screen_y,
+        (uint32_t)(IR_TEST_SCREEN_WIDTH - 1U), (uint32_t)(IR_TEST_SCREEN_HEIGHT - 1U));
 }
 
 static void usb_sim_run_script_step(void)
@@ -870,12 +1252,14 @@ static void usb_sim_handle_button_event(usb_sim_button_t *button, uint8_t presse
             usb_sim_set_mouse_button(g_usb_sim_ctx.report_state.mouse_left,
                 pressed,
                 g_usb_sim_ctx.report_state.mouse_middle);
+            usb_sim_gamepad_set_button(button->gamepad_button, pressed);
             break;
 
         case USB_BTN_ROLE_MOUSE_MIDDLE:
             usb_sim_set_mouse_button(g_usb_sim_ctx.report_state.mouse_left,
                 g_usb_sim_ctx.report_state.mouse_right,
                 pressed);
+            usb_sim_gamepad_set_button(button->gamepad_button, pressed);
             break;
 
         case USB_BTN_ROLE_KEYBOARD:
@@ -884,10 +1268,20 @@ static void usb_sim_handle_button_event(usb_sim_button_t *button, uint8_t presse
             } else {
                 usb_sim_keyboard_remove_key(button->key_code);
             }
+            if (button->gamepad_button != USB_SIM_GAMEPAD_INVALID_BUTTON) {
+                usb_sim_gamepad_set_button(button->gamepad_button, pressed);
+            }
+            if (button->dpad_dir != USB_SIM_DPAD_NONE) {
+                usb_sim_gamepad_update_dpad(button->dpad_dir, pressed);
+            }
             break;
 
         case USB_BTN_ROLE_RESERVED:
         default:
+            if (button->gamepad_button != USB_SIM_GAMEPAD_INVALID_BUTTON) {
+                usb_sim_gamepad_set_button(button->gamepad_button, pressed);
+                break;
+            }
             osal_printk("[usb_sim_test] button %s reserved, current test does not bind HID action.\r\n", button->name);
             break;
     }
@@ -959,7 +1353,7 @@ static int usb_sim_usb_init(void)
     struct device_string str_serial = { serial, sizeof(serial) };
     struct device_id dev_id = {
         .vendor_id = 0x1111,
-        .product_id = 0x0021,
+        .product_id = USB_SIM_DEVICE_PID,
         .release_num = 0x0100,
     };
 
@@ -987,11 +1381,13 @@ static int usb_sim_usb_init(void)
 
     osal_msleep(USB_SIM_HID_INIT_DELAY_MS);
     g_usb_sim_ctx.usb_ready = 1U;
-    osal_printk("[usb_sim_test] USB %s ready: hid_index=%u report_ids=(kbd:%u mouse:%u).\r\n",
+    osal_printk("[usb_sim_test] USB %s ready: hid_index=%u report_ids=(kbd:%u mouse:%u gamepad:%u) pid=0x%04x.\r\n",
         USB_SIM_DEVICE_MODE_NAME,
         (unsigned int)g_usb_sim_ctx.hid_index,
         (unsigned int)USB_SIM_HID_REPORT_ID_KEYBOARD,
-        (unsigned int)USB_SIM_HID_REPORT_ID_MOUSE);
+        (unsigned int)USB_SIM_HID_REPORT_ID_MOUSE,
+        (unsigned int)USB_SIM_HID_REPORT_ID_GAMEPAD,
+        (unsigned int)USB_SIM_DEVICE_PID);
     return 0;
 }
 
@@ -1069,6 +1465,7 @@ static int usb_sim_test_task(void *arg)
         usb_sim_scan_buttons(USB_SIM_TEST_POLL_MS);
         usb_sim_update_trigger_reference(USB_SIM_TEST_POLL_MS);
         usb_sim_update_live_ir_mouse();
+        usb_sim_update_live_ir_gamepad();
 
         g_usb_sim_ctx.scripted_elapsed_ms += USB_SIM_TEST_POLL_MS;
         if (g_usb_sim_ctx.scripted_elapsed_ms >= USB_SIM_TEST_SCRIPT_STEP_MS) {
