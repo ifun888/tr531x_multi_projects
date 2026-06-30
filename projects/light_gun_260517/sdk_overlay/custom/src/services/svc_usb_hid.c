@@ -181,12 +181,17 @@ static uint8_t hid_build_gamepad_hat(uint16_t keys_mask)
     return OF_GPAD_HAT_CENTERED;
 }
 
-static uint32_t hid_build_gamepad_buttons(uint16_t keys_mask)
+static uint32_t hid_build_gamepad_buttons(uint16_t keys_mask, uint8_t aim_valid)
 {
     uint32_t buttons = 0U;
+    uint8_t offscreen_button_enabled = (of_proto_mh_offscreen_button_enabled() != 0) ? 1U : 0U;
 
     if ((keys_mask & OF_KEY_MASK_TRIGGER) != 0U) {
-        buttons |= (1UL << OF_GPAD_BTN_A);
+        if (aim_valid != 0U) {
+            buttons |= (1UL << OF_GPAD_BTN_A);
+        } else if (offscreen_button_enabled != 0U) {
+            buttons |= (1UL << OF_GPAD_BTN_B);
+        }
     }
     if ((keys_mask & OF_KEY_MASK_A) != 0U) {
         buttons |= (1UL << OF_GPAD_BTN_B);
@@ -212,12 +217,13 @@ static uint32_t hid_build_gamepad_buttons(uint16_t keys_mask)
 static void hid_build_gamepad_report(of_wpkt_gamepad_payload_t *pkt, const of_pos_sample_t *pos, uint16_t keys_mask)
 {
     int use_left_stick = of_proto_mh_gamepad_aim_with_left_stick();
+    uint8_t aim_valid = ((pos->valid != 0U) && (pos->seen_count >= 2U)) ? 1U : 0U;
 
     (void)memset(pkt, 0, sizeof(*pkt));
     pkt->hat = hid_build_gamepad_hat(keys_mask);
-    pkt->buttons = hid_build_gamepad_buttons(keys_mask);
+    pkt->buttons = hid_build_gamepad_buttons(keys_mask, aim_valid);
 
-    if ((pos->valid == 0U) || (pos->seen_count < 2U)) {
+    if (aim_valid == 0U) {
         return;
     }
 
@@ -245,6 +251,8 @@ void svc_usb_hid_tick(void)
     uint8_t keyboard_keys[6];
     uint8_t keyboard_count;
     uint8_t mouse_buttons = 0U;
+    uint8_t aim_valid = 0U;
+    uint8_t offscreen_button_enabled = (of_proto_mh_offscreen_button_enabled() != 0) ? 1U : 0U;
     int32_t dx = 0;
     int32_t dy = 0;
     uint32_t now_ms = (uint32_t)(of_time_us() / 1000U);
@@ -279,6 +287,7 @@ void svc_usb_hid_tick(void)
     (void)svc_position_get(&pos);
 
     if ((pos.valid != 0U) && (pos.seen_count >= 2U)) {
+        aim_valid = 1U;
         if (g_hid.prev_valid != 0U) {
             dx = (int32_t)pos.x - (int32_t)g_hid.prev_x;
             dy = (int32_t)pos.y - (int32_t)g_hid.prev_y;
@@ -291,9 +300,9 @@ void svc_usb_hid_tick(void)
     }
 
     if ((keys_mask & OF_KEY_MASK_TRIGGER) != 0U) {
-        if ((pos.valid != 0U) && (pos.seen_count >= 2U)) {
+        if (aim_valid != 0U) {
             mouse_buttons |= 0x01U;
-        } else {
+        } else if (offscreen_button_enabled != 0U) {
             mouse_buttons |= 0x02U;
         }
     }

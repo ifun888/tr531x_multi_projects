@@ -111,6 +111,11 @@ uint8_t of_proto_mh_input_mode(void)
     return g_mh.input_mode;
 }
 
+uint8_t of_proto_mh_offscreen_mode(void)
+{
+    return g_mh.offscreen_mode;
+}
+
 int of_proto_mh_gamepad_enabled(void)
 {
     return (g_mh.input_mode == 1U) || (g_mh.input_mode == 9U);
@@ -119,6 +124,11 @@ int of_proto_mh_gamepad_enabled(void)
 int of_proto_mh_gamepad_aim_with_left_stick(void)
 {
     return (g_mh.gamepad_aim_with_left_stick != 0U);
+}
+
+int of_proto_mh_offscreen_button_enabled(void)
+{
+    return (g_mh.offscreen_mode == 2U);
 }
 
 void of_proto_mh_process(const uint8_t *buf, uint32_t len)
