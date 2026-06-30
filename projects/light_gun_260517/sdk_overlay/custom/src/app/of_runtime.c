@@ -57,6 +57,7 @@ static void of_publish_runtime_telemetry(void)
 {
     extern uint64_t uapi_tcxo_get_us(void) __attribute__((weak));
     static uint64_t s_last_us = 0;
+    static uint8_t s_prev_wireless_ready = 0U;
     uint64_t now_us = (uapi_tcxo_get_us != 0) ? uapi_tcxo_get_us() : 0;
     uint8_t pkt[20] = {0};
     uint8_t keys[2] = {0};
@@ -67,14 +68,29 @@ static void of_publish_runtime_telemetry(void)
     uint8_t key_map0 = 0;
     uint8_t mapped_keys = 0;
     of_pos_sample_t pos = {0};
+    uint8_t wireless_link_up = of_link_wireless_active() ? 1U : 0U;
+    uint8_t wireless_ready = of_link_is_ready() ? 1U : 0U;
     const of_dev_t *keys_dev = drv_input_keys_get_dev();
     const of_dev_t *adc_dev = drv_input_adc_get_dev();
     const of_dev_t *temp_dev = drv_temp_sensor_get_dev();
 
+    if (wireless_link_up != 0U) {
+        if (wireless_ready == 0U) {
+            s_prev_wireless_ready = 0U;
+            s_last_us = 0;
+            return;
+        }
+        if (s_prev_wireless_ready == 0U) {
+            s_last_us = 0;
+        }
+    }
+
     if ((now_us != 0) && (s_last_us != 0) && ((now_us - s_last_us) < 5000U)) {
+        s_prev_wireless_ready = wireless_ready;
         return;
     }
     s_last_us = now_us;
+    s_prev_wireless_ready = wireless_ready;
 
     (void)svc_position_get(&pos);
     if ((keys_dev != 0) && (keys_dev->ops != 0) && (keys_dev->ops->read != 0)) {
