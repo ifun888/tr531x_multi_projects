@@ -9,7 +9,6 @@ typedef enum {
     OF_CFG_SETTINGS,
     OF_CFG_PROFILE,
     OF_CFG_BUTTONS,
-    OF_CFG_USB_ID,
 } of_cfg_type_t;
 
 int svc_profile_load(void);

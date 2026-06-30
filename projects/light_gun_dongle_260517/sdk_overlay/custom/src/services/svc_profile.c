@@ -10,7 +10,7 @@ typedef struct {
     uint8_t settings[16];
     uint8_t profile[32];
     uint8_t buttons[16];
-    uint8_t usb_id[18];
+    uint8_t reserved_identity[18];
 } of_profile_store_t;
 
 #define OF_PROFILE_RUN_MODE_IDX 0U
@@ -46,8 +46,8 @@ void svc_profile_apply_default(void)
     for (i = 0; i < sizeof(g_store.buttons); i++) {
         g_store.buttons[i] = (uint8_t)i;
     }
-    for (i = 0; i < sizeof(g_store.usb_id); i++) {
-        g_store.usb_id[i] = 0U;
+    for (i = 0; i < sizeof(g_store.reserved_identity); i++) {
+        g_store.reserved_identity[i] = 0U;
     }
 }
 
@@ -105,9 +105,6 @@ const uint8_t *svc_profile_get_blob(of_cfg_type_t type, uint32_t *len)
         case OF_CFG_BUTTONS:
             if (len != 0) *len = sizeof(g_store.buttons);
             return g_store.buttons;
-        case OF_CFG_USB_ID:
-            if (len != 0) *len = sizeof(g_store.usb_id);
-            return g_store.usb_id;
         default:
             return 0;
     }
@@ -140,10 +137,6 @@ int svc_profile_set_blob(of_cfg_type_t type, const uint8_t *buf, uint32_t len)
         case OF_CFG_BUTTONS:
             dst = g_store.buttons;
             n = sizeof(g_store.buttons);
-            break;
-        case OF_CFG_USB_ID:
-            dst = g_store.usb_id;
-            n = sizeof(g_store.usb_id);
             break;
         default:
             return -1;

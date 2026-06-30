@@ -23,6 +23,9 @@ static of_mode_t g_mode = OF_MODE_RUN;
 #define OF_CMD_CLEAR_FLASH    0xFDU
 #define OF_CMD_TERM           0xFEU
 
+#define OF_PROTO_STATUS_OK          0x00U
+#define OF_PROTO_STATUS_UNSUPPORTED 0x01U
+
 void of_proto_set_mode(of_mode_t mode)
 {
     g_mode = mode;
@@ -64,7 +67,7 @@ void of_proto_docked_process(const uint8_t *buf, uint32_t len)
     }
 
     if ((len >= 2U) && (buf[0] == 0x01U) && (buf[1] == 0x02U)) {
-        static const uint8_t ack[] = {0x81, 0x02, 0x00};
+        static const uint8_t ack[] = {0x81, 0x02, OF_PROTO_STATUS_OK};
         proto_reply(ack, sizeof(ack));
         return;
     }
@@ -72,7 +75,7 @@ void of_proto_docked_process(const uint8_t *buf, uint32_t len)
     if ((len >= 2U) && (buf[0] == 0x10U)) {
         g_mode = (of_mode_t)buf[1];
         {
-            uint8_t ack[] = {0x90, (uint8_t)g_mode, 0x00};
+            uint8_t ack[] = {0x90, (uint8_t)g_mode, OF_PROTO_STATUS_OK};
             proto_reply(ack, sizeof(ack));
         }
         return;
@@ -99,7 +102,7 @@ void of_proto_docked_process(const uint8_t *buf, uint32_t len)
             ack[0] = 0xA0;
             ack[1] = buf[1];
             ack[2] = tmp[buf[1]];
-            ack[3] = 0x00;
+            ack[3] = OF_PROTO_STATUS_OK;
             proto_reply(ack, sizeof(ack));
         }
         return;
@@ -182,16 +185,16 @@ void of_proto_docked_process(const uint8_t *buf, uint32_t len)
                          ((uint32_t)buf[4] << 16) |
                          ((uint32_t)buf[5] << 24);
             (void)svc_profile_set_u32(OF_CFG_SETTINGS, buf[1], v);
-            proto_reply_byte(buf[0], 0x00U);
+            proto_reply_byte(buf[0], OF_PROTO_STATUS_OK);
             return;
         }
         (void)svc_profile_set_blob(type, &buf[1], len - 1U);
-        proto_reply_byte(buf[0], 0x00U);
+        proto_reply_byte(buf[0], OF_PROTO_STATUS_OK);
         return;
     }
     if ((len >= 3U) && (buf[0] == OF_CMD_COMMIT_PINS || buf[0] == OF_CMD_COMMIT_BTNS)) {
         (void)svc_binding_set(buf[1], buf[2]);
-        proto_reply_byte(buf[0], 0x00U);
+        proto_reply_byte(buf[0], OF_PROTO_STATUS_OK);
         return;
     }
     if ((len >= 5U) && (buf[0] == OF_CMD_COMMIT_PROFILE)) {
@@ -202,19 +205,16 @@ void of_proto_docked_process(const uint8_t *buf, uint32_t len)
                          ((uint32_t)buf[5] << 24);
             (void)svc_profile_set_u32(OF_CFG_PROFILE, buf[1], v);
             (void)svc_calibration_load_profile();
-            proto_reply_byte(buf[0], 0x00U);
+            proto_reply_byte(buf[0], OF_PROTO_STATUS_OK);
             return;
         }
         (void)svc_profile_set_blob(OF_CFG_PROFILE, &buf[1], len - 1U);
         (void)svc_calibration_load_profile();
-        proto_reply_byte(buf[0], 0x00U);
+        proto_reply_byte(buf[0], OF_PROTO_STATUS_OK);
         return;
     }
     if ((len >= 1U) && (buf[0] == OF_CMD_COMMIT_ID)) {
-        if (len > 1U) {
-            (void)svc_profile_set_blob(OF_CFG_USB_ID, &buf[1], len - 1U);
-        }
-        proto_reply_byte(buf[0], 0x00U);
+        proto_reply_byte(buf[0], OF_PROTO_STATUS_UNSUPPORTED);
         return;
     }
     if ((len >= 1U) && (buf[0] == OF_CMD_SAVE)) {
@@ -233,12 +233,12 @@ void of_proto_docked_process(const uint8_t *buf, uint32_t len)
         (void)svc_calibration_exit();
         svc_profile_apply_default();
         (void)svc_calibration_load_profile();
-        proto_reply_byte(OF_CMD_CLEAR_FLASH, 0x00U);
+        proto_reply_byte(OF_CMD_CLEAR_FLASH, OF_PROTO_STATUS_OK);
         return;
     }
     if ((len >= 1U) && (buf[0] == OF_CMD_TERM)) {
         g_mode = OF_MODE_RUN;
-        proto_reply_byte(OF_CMD_TERM, 0x00U);
+        proto_reply_byte(OF_CMD_TERM, OF_PROTO_STATUS_OK);
         return;
     }
 
