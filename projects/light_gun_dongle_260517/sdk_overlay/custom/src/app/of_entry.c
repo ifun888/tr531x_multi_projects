@@ -10,6 +10,7 @@
 #include "services/svc_profile.h"
 #include "services/svc_binding.h"
 #include "services/svc_calibration.h"
+#include "services/svc_transport_router.h"
 
 void of_runtime_once(void);
 
@@ -36,7 +37,7 @@ void demo_sle_uart_overlay_entry(void)
     }
 
     of_diag_init();
-    (void)of_transport_init(OF_TRANSPORT_SLE);
+    (void)svc_transport_route_init();
     if ((usb != 0) && (usb->ops != 0) && (usb->ops->open != 0)) {
         (void)usb->ops->open(usb->priv);
     }
