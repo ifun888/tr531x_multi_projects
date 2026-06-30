@@ -680,32 +680,54 @@ static int acm_init_eps(struct usbdevclass_driver_s *driver,
   datactrl->epintin = DEV_ALLOCEP(dev, func_desc->nepd.addr, &func_desc->nepd);
   if (datactrl->epintin == NULL)
     {
-      usb_err("alloc epintin fail!");
+      usb_err("alloc epintin fail! desc_addr=0x%x index=%u\n", func_desc->nepd.addr, index);
       ret = -ENODEV;
       goto free_out;
     }
+  PRINTK("acm alloc epintin ok: index=%u req=0x%x logical=%u\n",
+         index, func_desc->nepd.addr, datactrl->epintin->eplog);
 
   ACM_SET_INTERRUPT_EP_NUM(devinfo, index) = datactrl->epintin->eplog;
   datactrl->epintin->priv = cnode;
 
+  if ((func_desc->iepd.addr & 0x0fU) == 0U)
+    {
+      func_desc->iepd.addr = (uint8_t)(USB_DIR_IN | (((uint8_t)datactrl->epintin->eplog & 0x0fU) + 1U));
+      PRINTK("acm patch epbulkin addr: index=%u patched_req=0x%x\n", index, func_desc->iepd.addr);
+    }
+
+  PRINTK("acm alloc epbulkin try: index=%u req=0x%x\n", index, func_desc->iepd.addr);
   datactrl->epbulkin = DEV_ALLOCEP(dev, func_desc->iepd.addr, &func_desc->iepd);
   if (datactrl->epbulkin == NULL)
     {
-      usb_err("alloc epbulkin fail!\n");
+      PRINTK("acm alloc epbulkin fail: index=%u req=0x%x\n", index, func_desc->iepd.addr);
+      usb_err("alloc epbulkin fail! desc_addr=0x%x index=%u\n", func_desc->iepd.addr, index);
       ret = -ENODEV;
       goto free_out;
     }
+  PRINTK("acm alloc epbulkin ok: index=%u req=0x%x logical=%u\n",
+         index, func_desc->iepd.addr, datactrl->epbulkin->eplog);
 
   ACM_SET_BULKIN_EP_NUM(devinfo, index) = datactrl->epbulkin->eplog;
   datactrl->epbulkin->priv = cnode;
 
+  if ((func_desc->oepd.addr & 0x0fU) == 0U)
+    {
+      func_desc->oepd.addr = (uint8_t)(USB_DIR_OUT | (index + 1U));
+      PRINTK("acm patch epbulkout addr: index=%u patched_req=0x%x\n", index, func_desc->oepd.addr);
+    }
+
+  PRINTK("acm alloc epbulkout try: index=%u req=0x%x\n", index, func_desc->oepd.addr);
   datactrl->epbulkout = DEV_ALLOCEP(dev, func_desc->oepd.addr, &func_desc->oepd);
   if (datactrl->epbulkout == NULL)
     {
-      usb_err("alloc epbulkout fail!");
+      PRINTK("acm alloc epbulkout fail: index=%u req=0x%x\n", index, func_desc->oepd.addr);
+      usb_err("alloc epbulkout fail! desc_addr=0x%x index=%u\n", func_desc->oepd.addr, index);
       ret = -ENODEV;
       goto free_out;
     }
+  PRINTK("acm alloc epbulkout ok: index=%u req=0x%x logical=%u\n",
+         index, func_desc->oepd.addr, datactrl->epbulkout->eplog);
 
   ACM_SET_BULKOUT_EP_NUM(devinfo, index) = datactrl->epbulkout->eplog;
   datactrl->epbulkout->priv = cnode;

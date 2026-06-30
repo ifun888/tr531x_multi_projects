@@ -309,6 +309,8 @@ int composite_attach(struct gadget_device *dev)
       goto detach;
     }
 
+  PRINTK("composite attach success, type=%d ret=%d\n", dev_type_get(), ret);
+
   return 0; /* Attach success */
 
 detach:

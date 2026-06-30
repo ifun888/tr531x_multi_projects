@@ -705,9 +705,12 @@ static void usbclass_hid_set_endpoint(struct usbdevclass_driver_s *driver, struc
       ret = EP_CONFIGURE(hid_data->in_ep, ep_desc, 0);
       if (ret < 0)
         {
-          usb_err("Config interrupt in_ep failed!\n");
+          usb_err("Config interrupt in_ep failed! index=%u ep_addr=0x%x ret=%d\n",
+                  index, ep_desc->addr, ret);
           goto errout;
         }
+      PRINTK("hid configure in_ep ok: index=%u ep_addr=0x%x logical=%u\n",
+             index, ep_desc->addr, hid_data->in_ep->eplog);
       hid_data->in_ep_enabled = true;
       hid_data->idle_flag = 0;
       hid_data->report_flag = 0;
