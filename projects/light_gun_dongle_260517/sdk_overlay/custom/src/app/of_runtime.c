@@ -18,6 +18,9 @@
 
 #define OF_MH_REPLAY_MAX_CMD_LEN   8U
 #define OF_MH_REPLAY_PARSE_BUF_LEN 64U
+#define OF_HID_CACHE_MOUSE         0x01U
+#define OF_HID_CACHE_KEYBOARD      0x02U
+#define OF_HID_CACHE_GAMEPAD       0x04U
 
 typedef enum {
     OF_MH_SLOT_SESSION = 0,
@@ -60,6 +63,98 @@ typedef struct {
 } of_mh_replay_ctx_t;
 
 static of_mh_replay_ctx_t g_mh_replay;
+
+typedef struct {
+    uint8_t valid_mask;
+    uint8_t pending_mask;
+    uint8_t prev_usb_ready;
+    uint8_t prev_link_ready;
+    of_wpkt_mouse_payload_t mouse;
+    of_wpkt_keyboard_payload_t keyboard;
+    of_wpkt_gamepad_payload_t gamepad;
+} of_hid_replay_ctx_t;
+
+static of_hid_replay_ctx_t g_hid_replay;
+
+static void of_hid_replay_clear_all(void)
+{
+    g_hid_replay.valid_mask = 0U;
+    g_hid_replay.pending_mask = 0U;
+    (void)memset(&g_hid_replay.mouse, 0, sizeof(g_hid_replay.mouse));
+    (void)memset(&g_hid_replay.keyboard, 0, sizeof(g_hid_replay.keyboard));
+    (void)memset(&g_hid_replay.gamepad, 0, sizeof(g_hid_replay.gamepad));
+}
+
+static void of_hid_replay_mark_valid(uint8_t mask)
+{
+    g_hid_replay.valid_mask |= mask;
+    g_hid_replay.pending_mask |= mask;
+}
+
+static void of_hid_replay_note_usb_not_ready(void)
+{
+    if (drv_usb_hid_is_ready()) {
+        drv_usb_hid_set_ready(0);
+        osal_printk("[openfire][dongle] usb hid output failed, retry host ready probe\r\n");
+    }
+    g_hid_replay.prev_usb_ready = 0U;
+}
+
+static int of_hid_replay_flush_pending(void)
+{
+    if ((g_hid_replay.pending_mask & OF_HID_CACHE_MOUSE) != 0U) {
+        if (drv_usb_hid_send_mouse_report(g_hid_replay.mouse.buttons, g_hid_replay.mouse.dx,
+            g_hid_replay.mouse.dy, g_hid_replay.mouse.wheel) != 0) {
+            return -1;
+        }
+        g_hid_replay.pending_mask &= (uint8_t)(~OF_HID_CACHE_MOUSE);
+    }
+    if ((g_hid_replay.pending_mask & OF_HID_CACHE_KEYBOARD) != 0U) {
+        if (drv_usb_hid_send_keyboard_report(g_hid_replay.keyboard.keys, g_hid_replay.keyboard.key_count) != 0) {
+            return -1;
+        }
+        g_hid_replay.pending_mask &= (uint8_t)(~OF_HID_CACHE_KEYBOARD);
+    }
+    if ((g_hid_replay.pending_mask & OF_HID_CACHE_GAMEPAD) != 0U) {
+        if (drv_usb_hid_send_gamepad_report(&g_hid_replay.gamepad, sizeof(g_hid_replay.gamepad)) != 0) {
+            return -1;
+        }
+        g_hid_replay.pending_mask &= (uint8_t)(~OF_HID_CACHE_GAMEPAD);
+    }
+
+    return 0;
+}
+
+static void of_hid_replay_tick(void)
+{
+    uint8_t link_ready = (uint8_t)(of_link_is_ready() ? 1U : 0U);
+    uint8_t usb_ready = (uint8_t)(drv_usb_hid_is_ready() ? 1U : 0U);
+
+    if ((g_hid_replay.prev_link_ready != 0U) && (link_ready == 0U)) {
+        of_hid_replay_clear_all();
+    }
+    g_hid_replay.prev_link_ready = link_ready;
+
+    if (usb_ready == 0U) {
+        if (drv_usb_hid_probe_ready() == 0) {
+            drv_usb_hid_set_ready(1);
+            usb_ready = 1U;
+            osal_printk("[openfire][dongle] usb hid host ready\r\n");
+        }
+    }
+
+    if ((g_hid_replay.prev_usb_ready == 0U) && (usb_ready != 0U) && (g_hid_replay.valid_mask != 0U)) {
+        g_hid_replay.pending_mask |= g_hid_replay.valid_mask;
+        osal_printk("[openfire][dongle] replay cached hid state after host ready\r\n");
+    }
+    g_hid_replay.prev_usb_ready = usb_ready;
+
+    if ((usb_ready != 0U) && (g_hid_replay.pending_mask != 0U)) {
+        if (of_hid_replay_flush_pending() != 0) {
+            of_hid_replay_note_usb_not_ready();
+        }
+    }
+}
 
 static void of_mh_replay_drop_prefix(uint8_t count)
 {
@@ -473,12 +568,24 @@ static void of_bridge_sle_to_usb_and_hid(void)
             of_diag_on_tx(sent);
         } else if ((pkt_type == OF_WPKT_TYPE_HID_MOUSE) && (payload_len == sizeof(of_wpkt_mouse_payload_t))) {
             const of_wpkt_mouse_payload_t *pkt = (const of_wpkt_mouse_payload_t *)payload;
-            (void)drv_usb_hid_send_mouse_report(pkt->buttons, pkt->dx, pkt->dy, pkt->wheel);
+            g_hid_replay.mouse = *pkt;
+            of_hid_replay_mark_valid(OF_HID_CACHE_MOUSE);
+            if ((drv_usb_hid_is_ready() != 0) && (of_hid_replay_flush_pending() != 0)) {
+                of_hid_replay_note_usb_not_ready();
+            }
         } else if ((pkt_type == OF_WPKT_TYPE_HID_KEYBOARD) && (payload_len == sizeof(of_wpkt_keyboard_payload_t))) {
             const of_wpkt_keyboard_payload_t *pkt = (const of_wpkt_keyboard_payload_t *)payload;
-            (void)drv_usb_hid_send_keyboard_report(pkt->keys, pkt->key_count);
+            g_hid_replay.keyboard = *pkt;
+            of_hid_replay_mark_valid(OF_HID_CACHE_KEYBOARD);
+            if ((drv_usb_hid_is_ready() != 0) && (of_hid_replay_flush_pending() != 0)) {
+                of_hid_replay_note_usb_not_ready();
+            }
         } else if ((pkt_type == OF_WPKT_TYPE_HID_GAMEPAD) && (payload_len == sizeof(of_wpkt_gamepad_payload_t))) {
-            (void)drv_usb_hid_send_gamepad_report(payload, payload_len);
+            (void)memcpy(&g_hid_replay.gamepad, payload, sizeof(g_hid_replay.gamepad));
+            of_hid_replay_mark_valid(OF_HID_CACHE_GAMEPAD);
+            if ((drv_usb_hid_is_ready() != 0) && (of_hid_replay_flush_pending() != 0)) {
+                of_hid_replay_note_usb_not_ready();
+            }
         } else if (s_logged_unsupported[pkt_type] == 0U) {
             s_logged_unsupported[pkt_type] = 1U;
             osal_printk("[openfire][dongle] unsupported wireless pkt type=%u len=%u\r\n",
@@ -491,6 +598,7 @@ void of_runtime_once(void)
 {
     of_link_tick();
     of_mh_replay_tick();
+    of_hid_replay_tick();
     of_release_hid_on_disconnect();
     of_bridge_usb_to_sle();
     of_bridge_sle_to_usb_and_hid();

@@ -41,8 +41,8 @@ void demo_sle_uart_overlay_entry(void)
         (void)usb->ops->open(usb->priv);
     }
     if (drv_usb_hid_init() == 0) {
-        drv_usb_hid_set_ready(1);
-        osal_printk("[openfire-tr531x] dongle usb hid ready.\r\n");
+        drv_usb_hid_set_ready(0);
+        osal_printk("[openfire-tr531x] dongle usb hid initialized, wait host ready.\r\n");
     }
 
     for (i = 0; i < 8; i++) {
