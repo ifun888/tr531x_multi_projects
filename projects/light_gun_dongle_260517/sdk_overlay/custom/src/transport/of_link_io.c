@@ -84,11 +84,6 @@ int of_link_on_wireless_packet(uint8_t type, const uint8_t *payload, uint32_t pa
         g_link_hello_seen = 1U;
         osal_printk("[openfire][%s] rx hello\n", link_role_name());
         (void)of_link_send_packet(OF_WPKT_TYPE_LINK_HELLO_ACK, 0, 0U, &sent);
-        if (OF_ROLE_DONGLE) {
-            g_link_ready = 1U;
-            g_link_wait_start_ms = 0U;
-            osal_printk("[openfire][%s] link ready\n", link_role_name());
-        }
         return 1;
     }
 
