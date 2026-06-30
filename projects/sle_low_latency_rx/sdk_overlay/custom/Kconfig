@@ -1,0 +1,7 @@
+config SAMPLE_SUPPORT_DEMO_SLE_UART
+    bool
+    prompt "Enable Demo SLE UART Overlay"
+    default y
+    depends on SAMPLE_ENABLE
+    help
+        Build demo source from external project overlay.
