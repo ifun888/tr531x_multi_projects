@@ -81,9 +81,7 @@ void light_gun_260517_overlay_entry(void)
     }
 
     of_diag_init();
-    if (svc_transport_route_auto() != 0) {
-        (void)of_transport_init(OF_TRANSPORT_USB_CDC);
-    }
+    (void)svc_transport_route_auto();
     if (!g_runtime_task_started) {
         osal_task *task = osal_kthread_create(of_runtime_task, 0, "ofRuntime", 0x600);
         if (task != 0) {
