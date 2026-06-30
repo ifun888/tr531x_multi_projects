@@ -66,13 +66,26 @@ choose_project_text() {
 
     echo "Available projects:"
     local idx=1
+    local default_project default_index in_project
+    default_project="${PROJECT:-${projects[0]}}"
+    default_index=1
     for p in "${projects[@]}"; do
         echo "  ${idx}. ${p}"
+        if [[ "${p}" == "${default_project}" ]]; then
+            default_index="${idx}"
+        fi
         idx=$((idx + 1))
     done
 
-    read -rp "Project [${PROJECT:-${projects[0]}}]: " in_project
-    PROJECT="${in_project:-${PROJECT:-${projects[0]}}}"
+    read -rp "Project number [${default_index}]: " in_project
+    if [[ -z "${in_project}" ]]; then
+        PROJECT="${default_project}"
+    elif [[ "${in_project}" =~ ^[0-9]+$ ]] && (( in_project >= 1 && in_project <= ${#projects[@]} )); then
+        PROJECT="${projects[in_project-1]}"
+    else
+        echo "Invalid project number: ${in_project}" >&2
+        exit 1
+    fi
 
     read -rp "Target [${TARGET}]: " in_target
     TARGET="${in_target:-${TARGET}}"

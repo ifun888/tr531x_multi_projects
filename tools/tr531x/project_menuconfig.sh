@@ -54,9 +54,15 @@ load_profile_if_exists() {
     if [[ -f "${profile_file}" ]]; then
         # shellcheck disable=SC1090
         source "${profile_file}"
-        [[ -z "${project_name}" && -n "${PROJECT:-}" ]] && project_name="${PROJECT}"
-        [[ -z "${target}" && -n "${TARGET:-}" ]] && target="${TARGET}"
-        [[ -z "${patch_set}" && -n "${PATCH_SET:-}" ]] && patch_set="${PATCH_SET}"
+        if [[ -z "${project_name}" && -n "${PROJECT:-}" ]]; then
+            project_name="${PROJECT}"
+        fi
+        if [[ -z "${target}" && -n "${TARGET:-}" ]]; then
+            target="${TARGET}"
+        fi
+        if [[ -z "${patch_set}" && -n "${PATCH_SET:-}" ]]; then
+            patch_set="${PATCH_SET}"
+        fi
     fi
 }
 
@@ -73,7 +79,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 load_profile_if_exists
-if inferred_project="$(infer_project_from_cwd)"; then project_name="${inferred_project}"; fi
+inferred_project="$(infer_project_from_cwd || true)"
+if [[ -n "${inferred_project}" ]]; then
+    project_name="${inferred_project}"
+fi
 project_name="$(normalize_project_name "${project_name}")"
 
 [[ -n "${project_name}" ]] || { echo "project is empty. Set --project or run from projects/<name> directory."; exit 1; }
