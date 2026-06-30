@@ -336,7 +336,7 @@ void svc_usb_hid_tick(void)
         g_hid.route_wireless_gamepad_mode = (uint8_t)wireless_gamepad_mode;
     }
 
-    if (!wireless_link_up && !drv_usb_hid_is_ready()) {
+    if (!wireless_active && !drv_usb_hid_is_ready()) {
         if ((now_ms - g_hid.probe_last_ms) < OF_USB_HID_PROBE_INTERVAL_MS) {
             return;
         }
@@ -352,11 +352,6 @@ void svc_usb_hid_tick(void)
             }
             g_hid.probed_once = 1U;
         }
-        return;
-    }
-
-    if (wireless_link_up && !wireless_active) {
-        hid_reset_motion_history();
         return;
     }
 
@@ -479,7 +474,7 @@ void svc_usb_hid_tick(void)
         }
     }
 
-    if (!wireless_link_up && (g_hid.link_fail_count >= OF_USB_HID_LINK_FAIL_THRESHOLD)) {
+    if (!wireless_active && (g_hid.link_fail_count >= OF_USB_HID_LINK_FAIL_THRESHOLD)) {
         drv_usb_hid_set_ready(0);
         g_hid.active = 0U;
         g_hid.link_fail_count = 0U;
