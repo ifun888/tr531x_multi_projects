@@ -1,6 +1,5 @@
 #include "of_selftest.h"
 #include "of_link_io.h"
-#include "drivers/drv_usb_cdc.h"
 #include "drivers/drv_ir_cam.h"
 #include "drivers/drv_input_keys.h"
 #include "drivers/drv_input_adc.h"
@@ -36,9 +35,6 @@ void of_selftest_run(void)
     }
     if (!drv_temp_sensor_is_ready()) {
         g_result[OF_ST_TEMP] = OF_ST_RES_WARN;
-    }
-    if (!drv_usb_cdc_is_ready()) {
-        g_result[OF_ST_USB] = OF_ST_RES_WARN;
     }
     if (!of_link_is_ready()) {
         g_result[OF_ST_SLE] = OF_ST_RES_WARN;
