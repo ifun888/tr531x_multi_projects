@@ -1,6 +1,6 @@
 #include "of_selftest.h"
+#include "of_link_io.h"
 #include "drivers/drv_usb_cdc.h"
-#include "drivers/drv_sle_link.h"
 
 static of_selftest_result_t g_result[OF_ST_MAX];
 static uint32_t g_bitmap = 0;
@@ -17,7 +17,7 @@ void of_selftest_run(void)
     if (!drv_usb_cdc_is_ready()) {
         g_result[OF_ST_USB] = OF_ST_RES_WARN;
     }
-    if (!drv_sle_link_is_ready()) {
+    if (!of_link_is_ready()) {
         g_result[OF_ST_SLE] = OF_ST_RES_WARN;
     }
 }
