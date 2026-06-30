@@ -3,7 +3,7 @@
 
 static int svc_route_switch(of_transport_type_t type)
 {
-    static of_transport_type_t g_cur_type = OF_TRANSPORT_USB_CDC;
+    static of_transport_type_t g_cur_type = OF_TRANSPORT_SLE;
     static int g_route_ready = 0;
 
     if (g_route_ready && (g_cur_type == type)) {

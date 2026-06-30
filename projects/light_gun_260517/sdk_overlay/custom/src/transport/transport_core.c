@@ -4,7 +4,7 @@
 #include "drivers/drv_sle_link.h"
 
 static const of_dev_t *g_dev = 0;
-static of_transport_type_t g_type = OF_TRANSPORT_USB_CDC;
+static of_transport_type_t g_type = OF_TRANSPORT_SLE;
 
 int of_transport_init(of_transport_type_t type)
 {
