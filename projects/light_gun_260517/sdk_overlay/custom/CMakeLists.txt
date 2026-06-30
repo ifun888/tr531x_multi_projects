@@ -12,7 +12,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/transport_core.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/transport_sle_sdk_hook.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/transport_rx_hooks.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../products/sle_uart/sle_uart_client/sle_uart_client.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/of_sle_uart_client_local.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/of_wireless_pkt.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/of_link_io.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_usb_cdc.c
