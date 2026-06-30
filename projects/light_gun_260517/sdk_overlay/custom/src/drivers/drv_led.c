@@ -5,7 +5,19 @@
 #include <stdint.h>
 
 #ifndef OF_LED_PIN
+#ifdef CONFIG_LIGHT_GUN_260517_LED_PIN
+#define OF_LED_PIN CONFIG_LIGHT_GUN_260517_LED_PIN
+#else
 #define OF_LED_PIN 2
+#endif
+#endif
+
+#ifndef OF_LED_ACTIVE_HIGH
+#if defined(CONFIG_LIGHT_GUN_260517_LED_ACTIVE_HIGH)
+#define OF_LED_ACTIVE_HIGH 1
+#else
+#define OF_LED_ACTIVE_HIGH 0
+#endif
 #endif
 
 static int g_opened;
@@ -14,10 +26,14 @@ static uint8_t g_led_state;
 
 static int led_apply(uint8_t v)
 {
+    gpio_level_t level = GPIO_LEVEL_LOW;
+    if (((v != 0U) && (OF_LED_ACTIVE_HIGH != 0)) || ((v == 0U) && (OF_LED_ACTIVE_HIGH == 0))) {
+        level = GPIO_LEVEL_HIGH;
+    }
 #if defined(CONFIG_BLINKY_PIN)
-    return (uapi_gpio_set_val(CONFIG_BLINKY_PIN, (v != 0U) ? GPIO_LEVEL_HIGH : GPIO_LEVEL_LOW) == ERRCODE_SUCC) ? 0 : -1;
+    return (uapi_gpio_set_val(CONFIG_BLINKY_PIN, level) == ERRCODE_SUCC) ? 0 : -1;
 #else
-    return (uapi_gpio_set_val((pin_t)OF_LED_PIN, (v != 0U) ? GPIO_LEVEL_HIGH : GPIO_LEVEL_LOW) == ERRCODE_SUCC) ? 0 : -1;
+    return (uapi_gpio_set_val((pin_t)OF_LED_PIN, level) == ERRCODE_SUCC) ? 0 : -1;
 #endif
 }
 

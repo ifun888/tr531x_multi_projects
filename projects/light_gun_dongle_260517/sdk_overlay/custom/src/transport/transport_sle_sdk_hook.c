@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "sle_device_discovery.h"
 
 extern uint16_t sle_uart_client_is_connected(void);
 extern int sle_uart_server_send_report_by_handle(const uint8_t *data, uint8_t len);
@@ -22,4 +23,14 @@ int of_sle_sdk_send(const uint8_t *buf, uint32_t len)
     }
 
     return 0;
+}
+
+void of_sle_sdk_enter_search(void)
+{
+    (void)sle_start_announce(1U);
+}
+
+void of_sle_sdk_force_reconnect(void)
+{
+    (void)sle_start_announce(1U);
 }

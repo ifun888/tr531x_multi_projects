@@ -2,41 +2,47 @@
 #include "soc_osal.h"
 #include "of_sm.h"
 #include "of_transport.h"
+#include "drivers/drv_sle_link.h"
+#include "drivers/drv_usb_cdc.h"
+#include "drivers/drv_usb_hid.h"
 #include "of_diag.h"
+#include "drivers/drv_storage.h"
+#include "services/svc_profile.h"
+#include "services/svc_binding.h"
+#include "services/svc_calibration.h"
 
-int svc_transport_route_auto(void);
-int svc_transport_route_tick(void);
 void of_runtime_once(void);
-static int g_route_task_started = 0;
 
-static int of_route_task(void *data)
+static void of_init_peripherals(void)
 {
-    (void)data;
-    while (1) {
-        (void)svc_transport_route_tick();
-        osal_msleep(2);
+    const of_dev_t *dev = drv_storage_get_dev();
+    if ((dev != 0) && (dev->ops != 0) && (dev->ops->open != 0)) {
+        (void)dev->ops->open(dev->priv);
     }
-    return 0;
 }
 
 void demo_sle_uart_overlay_entry(void)
 {
     int i;
+    const of_dev_t *usb = drv_usb_cdc_get_dev();
     of_sm_init();
+    of_init_peripherals();
+    (void)svc_profile_load();
+    (void)svc_binding_load();
+    (void)svc_calibration_exit();
+    (void)svc_calibration_load_profile();
     for (i = 0; i < 5; i++) {
         of_sm_step();
     }
 
     of_diag_init();
-    if (svc_transport_route_auto() != 0) {
-        (void)of_transport_init(OF_TRANSPORT_USB_CDC);
+    (void)of_transport_init(OF_TRANSPORT_SLE);
+    if ((usb != 0) && (usb->ops != 0) && (usb->ops->open != 0)) {
+        (void)usb->ops->open(usb->priv);
     }
-    if (!g_route_task_started) {
-        osal_task *task = osal_kthread_create(of_route_task, 0, "ofRoute", 0x600);
-        if (task != 0) {
-            (void)osal_kthread_set_priority(task, 24);
-            g_route_task_started = 1;
-        }
+    if (drv_usb_hid_init() == 0) {
+        drv_usb_hid_set_ready(1);
+        osal_printk("[openfire-tr531x] dongle usb hid ready.\r\n");
     }
 
     for (i = 0; i < 8; i++) {

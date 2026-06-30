@@ -12,8 +12,12 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/transport_core.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/transport_sle_sdk_hook.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/transport_rx_hooks.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/of_wireless_pkt.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/transport/of_link_io.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_usb_cdc.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_sle_link.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_usb_hid.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/drivers/drv_storage.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/svc_transport_router.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/svc_profile.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/services/svc_calibration.c

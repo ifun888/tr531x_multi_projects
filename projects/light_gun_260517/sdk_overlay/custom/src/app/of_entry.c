@@ -1,3 +1,4 @@
+#include "app_init.h"
 #include "osal_debug.h"
 #include "soc_osal.h"
 #include "of_sm.h"
@@ -10,14 +11,20 @@
 #include "drivers/drv_led.h"
 #include "drivers/drv_storage.h"
 #include "drivers/drv_temp_sensor.h"
+#include "drivers/drv_solenoid.h"
+#include "drivers/drv_rumble.h"
+#include "drivers/drv_usb_hid.h"
 #include "services/svc_profile.h"
 #include "services/svc_binding.h"
 #include "services/svc_calibration.h"
+#include "services/svc_position.h"
+#include "services/svc_usb_hid.h"
 
 int svc_transport_route_auto(void);
-int svc_transport_route_tick(void);
 void of_runtime_once(void);
-static int g_route_task_started = 0;
+static int g_runtime_task_started = 0;
+
+extern void sle_uart_client_sample_dev_cbk_register(void);
 
 static void of_init_peripherals(void)
 {
@@ -36,26 +43,34 @@ static void of_init_peripherals(void)
             (void)devs[i]->ops->open(devs[i]->priv);
         }
     }
+
+    (void)drv_solenoid_init();
+    (void)drv_rumble_init();
+    (void)drv_usb_hid_init();
+    svc_usb_hid_init();
 }
 
-static int of_route_task(void *data)
+static int of_runtime_task(void *data)
 {
     (void)data;
     while (1) {
-        (void)svc_transport_route_tick();
-        osal_msleep(2);
+        of_runtime_once();
+        osal_msleep(1);
     }
     return 0;
 }
 
-void demo_sle_uart_overlay_entry(void)
+void light_gun_260517_overlay_entry(void)
 {
     int i;
     of_sm_init();
     of_init_peripherals();
+    sle_uart_client_sample_dev_cbk_register();
     (void)svc_profile_load();
     (void)svc_binding_load();
     (void)svc_calibration_exit();
+    (void)svc_calibration_load_profile();
+    svc_position_init();
     for (i = 0; i < 5; i++) {
         of_sm_step();
     }
@@ -64,11 +79,11 @@ void demo_sle_uart_overlay_entry(void)
     if (svc_transport_route_auto() != 0) {
         (void)of_transport_init(OF_TRANSPORT_USB_CDC);
     }
-    if (!g_route_task_started) {
-        osal_task *task = osal_kthread_create(of_route_task, 0, "ofRoute", 0x600);
+    if (!g_runtime_task_started) {
+        osal_task *task = osal_kthread_create(of_runtime_task, 0, "ofRuntime", 0x600);
         if (task != 0) {
             (void)osal_kthread_set_priority(task, 24);
-            g_route_task_started = 1;
+            g_runtime_task_started = 1;
         }
     }
 
@@ -79,3 +94,10 @@ void demo_sle_uart_overlay_entry(void)
     osal_printk("[openfire-tr531x] M5 skeleton boot=%d link=%d\n",
         (int)of_sm_get_boot_state(), (int)of_transport_get_type());
 }
+
+void demo_sle_uart_overlay_entry(void)
+{
+    light_gun_260517_overlay_entry();
+}
+
+app_run(demo_sle_uart_overlay_entry);

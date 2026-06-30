@@ -1,4 +1,5 @@
 #include "of_protocol.h"
+#include "of_link_io.h"
 #include "of_transport.h"
 #include "drivers/drv_led.h"
 #include "drivers/drv_feedback.h"
@@ -42,7 +43,7 @@ of_mode_t of_proto_get_mode(void)
 static void proto_reply(const uint8_t *p, uint32_t n)
 {
     uint32_t sent = 0;
-    (void)of_transport_write(p, n, &sent);
+    (void)of_link_send_serial(p, n, &sent);
 }
 
 static void proto_reply_byte(uint8_t a, uint8_t b)

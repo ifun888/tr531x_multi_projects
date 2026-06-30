@@ -5,6 +5,8 @@
 #include "drivers/drv_input_keys.h"
 #include "drivers/drv_input_adc.h"
 #include "drivers/drv_feedback.h"
+#include "drivers/drv_solenoid.h"
+#include "drivers/drv_rumble.h"
 #include "drivers/drv_storage.h"
 #include "drivers/drv_temp_sensor.h"
 
@@ -29,7 +31,7 @@ void of_selftest_run(void)
     if (!drv_storage_is_ready()) {
         g_result[OF_ST_STORAGE] = OF_ST_RES_FAIL;
     }
-    if (!drv_feedback_is_ready()) {
+    if (!drv_feedback_is_ready() || !drv_solenoid_is_ready() || !drv_rumble_is_ready()) {
         g_result[OF_ST_FEEDBACK] = OF_ST_RES_WARN;
     }
     if (!drv_temp_sensor_is_ready()) {

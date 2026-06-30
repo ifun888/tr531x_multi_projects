@@ -1,6 +1,10 @@
 #include "of_transport.h"
 #include "of_protocol.h"
 #include "of_diag.h"
+#include "drivers/drv_usb_cdc.h"
+#include "drivers/drv_usb_hid.h"
+#include "of_link_io.h"
+#include "of_wireless_pkt.h"
 #include <stdint.h>
 
 #ifndef OF_ROLE_DONGLE
@@ -10,70 +14,72 @@
 #define OF_ENABLE_HEARTBEAT 0
 #endif
 
-#define OF_STRESS_TYPE_PING 1U
-#define OF_STRESS_TYPE_PONG 2U
-#define OF_STRESS_HDR_SZ 9U
-
-static int of_try_handle_stress_ping(const uint8_t *rx, uint32_t got)
+static void of_bridge_usb_to_sle(void)
 {
-    uint8_t tx[80];
-    uint32_t sent = 0;
-    uint32_t i;
+    const of_dev_t *usb = drv_usb_cdc_get_dev();
+    uint8_t rx[64];
+    uint32_t got = 0U;
+    uint32_t sent = 0U;
 
-    if ((rx == 0) || (got < OF_STRESS_HDR_SZ)) {
-        return 0;
+    if ((usb == 0) || (usb->ops == 0) || (usb->ops->read == 0)) {
+        return;
     }
-    if ((rx[0] != 'O') || (rx[1] != 'F') || (rx[2] != OF_STRESS_TYPE_PING)) {
-        return 0;
+    if (!of_link_is_ready()) {
+        return;
     }
-
-    if (got > sizeof(tx)) {
-        got = sizeof(tx);
+    if (usb->ops->read(usb->priv, rx, sizeof(rx), &got) != 0 || got == 0U) {
+        return;
     }
-    for (i = 0; i < got; i++) {
-        tx[i] = rx[i];
-    }
-    tx[2] = OF_STRESS_TYPE_PONG;
-    (void)of_transport_write(tx, got, &sent);
+    of_diag_on_rx(got);
+    (void)of_link_send_packet(OF_WPKT_TYPE_SERIAL_TUNNEL, rx, got, &sent);
     of_diag_on_tx(sent);
-    return 1;
+}
+
+static void of_bridge_sle_to_usb_and_hid(void)
+{
+    const of_dev_t *usb = drv_usb_cdc_get_dev();
+    uint8_t rx[64];
+    uint32_t got = 0U;
+    static of_wireless_stream_t s_wireless_rx;
+    static uint8_t s_wireless_inited = 0U;
+    uint8_t pkt_type = 0U;
+    uint8_t payload[OF_WPKT_MAX_PAYLOAD];
+    uint32_t payload_len = 0U;
+
+    if (s_wireless_inited == 0U) {
+        of_wireless_stream_init(&s_wireless_rx);
+        s_wireless_inited = 1U;
+    }
+
+    if (of_transport_read(rx, sizeof(rx), &got) != 0 || got == 0U) {
+        return;
+    }
+    of_diag_on_rx(got);
+    of_wireless_stream_feed(&s_wireless_rx, rx, got);
+
+    while (of_wireless_stream_next(&s_wireless_rx, &pkt_type, payload, sizeof(payload), &payload_len) > 0) {
+        if (of_link_on_wireless_packet(pkt_type, payload, payload_len)) {
+            continue;
+        }
+        if ((pkt_type == OF_WPKT_TYPE_SERIAL_TUNNEL) &&
+            (usb != 0) && (usb->ops != 0) && (usb->ops->write != 0)) {
+            uint32_t sent = 0U;
+            (void)usb->ops->write(usb->priv, payload, payload_len, &sent);
+            of_diag_on_tx(sent);
+        } else if ((pkt_type == OF_WPKT_TYPE_HID_MOUSE) && (payload_len == sizeof(of_wpkt_mouse_payload_t))) {
+            const of_wpkt_mouse_payload_t *pkt = (const of_wpkt_mouse_payload_t *)payload;
+            (void)drv_usb_hid_send_mouse_report(pkt->buttons, pkt->dx, pkt->dy, pkt->wheel);
+        } else if ((pkt_type == OF_WPKT_TYPE_HID_KEYBOARD) && (payload_len == sizeof(of_wpkt_keyboard_payload_t))) {
+            const of_wpkt_keyboard_payload_t *pkt = (const of_wpkt_keyboard_payload_t *)payload;
+            (void)drv_usb_hid_send_keyboard_report(pkt->keys, pkt->key_count);
+        }
+    }
 }
 
 void of_runtime_once(void)
 {
-    extern uint64_t uapi_tcxo_get_us(void) __attribute__((weak));
-    int svc_transport_route_tick(void);
-    uint8_t rx[64] = {0};
-    uint32_t got = 0;
-    uint64_t t0 = 0;
-    uint64_t t1 = 0;
-    static const uint8_t hb_gun[] = {'G','U','N','\n'};
-    static const uint8_t hb_dongle[] = {'D','N','G','\n'};
-
-    (void)svc_transport_route_tick();
-
-    if (of_transport_read(rx, sizeof(rx), &got) == 0 && got > 0) {
-        of_diag_on_rx(got);
-        if (!of_try_handle_stress_ping(rx, got)) {
-            of_proto_docked_process(rx, got);
-            of_proto_mh_process(rx, got);
-        }
-    }
-
-    if (OF_ENABLE_HEARTBEAT) {
-        uint32_t sent = 0;
-        t0 = (uapi_tcxo_get_us != 0) ? uapi_tcxo_get_us() : 0;
-        if (OF_ROLE_DONGLE) {
-            (void)of_transport_write(hb_dongle, sizeof(hb_dongle), &sent);
-        } else {
-            (void)of_transport_write(hb_gun, sizeof(hb_gun), &sent);
-        }
-        t1 = (uapi_tcxo_get_us != 0) ? uapi_tcxo_get_us() : 0;
-        of_diag_on_tx(sent);
-        if (t1 > t0) {
-            of_diag_on_rtt_us((uint32_t)(t1 - t0));
-        }
-    }
-
+    of_link_tick();
+    of_bridge_usb_to_sle();
+    of_bridge_sle_to_usb_and_hid();
     of_diag_tick();
 }

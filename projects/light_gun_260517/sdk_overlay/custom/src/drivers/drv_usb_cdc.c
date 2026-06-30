@@ -31,9 +31,10 @@ static void usb_rb_push(const uint8_t *buf, uint32_t len)
 
 static int usb_open(void *ctx)
 {
+    int keep_ready = g_ready;
     (void)ctx;
     g_opened = 1;
-    g_ready = 0;
+    g_ready = keep_ready;
     g_r = 0;
     g_w = 0;
     return 0;
