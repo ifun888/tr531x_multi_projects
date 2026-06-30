@@ -21,9 +21,8 @@ static int svc_route_switch(of_transport_type_t type)
     return -1;
 }
 
-int svc_transport_route_init(of_link_type_t link)
+int svc_transport_route_init(void)
 {
-    (void)link;
     return svc_route_switch(OF_TRANSPORT_SLE);
 }
 
