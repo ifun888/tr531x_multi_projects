@@ -1,0 +1,161 @@
+#ifndef LIGHT_GUN_DRIVER_TEST_SOLENOID_TEST_H
+#define LIGHT_GUN_DRIVER_TEST_SOLENOID_TEST_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * 电磁铁驱动 GPIO 选择。
+ *
+ * 这里约定输出初始化策略为：
+ * 1. 引脚复用到 GPIO
+ * 2. 使能上拉
+ * 3. 配置为输出
+ * 4. 默认输出 LOW
+ *
+ * 这样做的目的很直接：
+ * - 上电后先确保线圈不吸合
+ * - 避免测试代码启动前出现误触发
+ */
+#ifndef SOLENOID_TEST_GPIO
+#ifdef CONFIG_LIGHT_GUN_SOLENOID_GPIO
+#define SOLENOID_TEST_GPIO CONFIG_LIGHT_GUN_SOLENOID_GPIO
+#else
+#define SOLENOID_TEST_GPIO 6
+#endif
+#endif
+
+/*
+ * 闭环测试用例选择。
+ *
+ * 通过修改 SOLENOID_TEST_CASE 来切换测试流程，不需要改 C 文件内部逻辑。
+ * 每个用例验证的点如下：
+ *
+ * 1. SINGLE_ONCE
+ *    验证最基础的单次脉冲闭环：
+ *    GPIO 是否能按预期从 LOW -> HIGH -> LOW 切换，
+ *    以及单次吸合时间是否正确。
+ *
+ * 2. SINGLE_PERIODIC
+ *    验证周期性单发闭环：
+ *    长时间运行时，定时器是否稳定，
+ *    每一轮是否都能正确打一枪并回到安全低电平。
+ *
+ * 3. AUTOFIRE_BOUNDED
+ *    验证“有限连发”闭环：
+ *    一轮里连续输出多发脉冲，再强制休息。
+ *    这个测试对应后续“按住扳机持续连发”的基础时序能力。
+ *
+ * 4. TRIPLE_BURST
+ *    验证“三连发”闭环：
+ *    一轮固定输出 3 个脉冲，检查 burst 计数和节奏控制是否正确。
+ *
+ * 5. SAFETY_CLAMP
+ *    验证安全钳位闭环：
+ *    故意请求一个危险的长通电时间，
+ *    检查驱动是否会自动截断到安全值，防止线圈烧毁。
+ */
+#define SOLENOID_TEST_CASE_SINGLE_ONCE          1
+#define SOLENOID_TEST_CASE_SINGLE_PERIODIC      2
+#define SOLENOID_TEST_CASE_AUTOFIRE_BOUNDED     3
+#define SOLENOID_TEST_CASE_TRIPLE_BURST         4
+#define SOLENOID_TEST_CASE_SAFETY_CLAMP         5
+
+#ifndef SOLENOID_TEST_CASE
+#if defined(CONFIG_LIGHT_GUN_SOLENOID_CASE_SINGLE_ONCE)
+#define SOLENOID_TEST_CASE SOLENOID_TEST_CASE_SINGLE_ONCE
+#elif defined(CONFIG_LIGHT_GUN_SOLENOID_CASE_SINGLE_PERIODIC)
+#define SOLENOID_TEST_CASE SOLENOID_TEST_CASE_SINGLE_PERIODIC
+#elif defined(CONFIG_LIGHT_GUN_SOLENOID_CASE_AUTOFIRE_BOUNDED)
+#define SOLENOID_TEST_CASE SOLENOID_TEST_CASE_AUTOFIRE_BOUNDED
+#elif defined(CONFIG_LIGHT_GUN_SOLENOID_CASE_TRIPLE_BURST)
+#define SOLENOID_TEST_CASE SOLENOID_TEST_CASE_TRIPLE_BURST
+#elif defined(CONFIG_LIGHT_GUN_SOLENOID_CASE_SAFETY_CLAMP)
+#define SOLENOID_TEST_CASE SOLENOID_TEST_CASE_SAFETY_CLAMP
+#else
+#define SOLENOID_TEST_CASE SOLENOID_TEST_CASE_SINGLE_ONCE
+#endif
+#endif
+
+/*
+ * 以下时间参数都是“安全优先”的默认值。
+ * 真实电磁铁不能长时间通电，所以默认 on 时间偏保守。
+ */
+#ifndef SOLENOID_TEST_START_DELAY_MS
+#ifdef CONFIG_LIGHT_GUN_SOLENOID_START_DELAY_MS
+#define SOLENOID_TEST_START_DELAY_MS CONFIG_LIGHT_GUN_SOLENOID_START_DELAY_MS
+#else
+#define SOLENOID_TEST_START_DELAY_MS 1500U
+#endif
+#endif
+
+#ifndef SOLENOID_TEST_ON_MS
+#ifdef CONFIG_LIGHT_GUN_SOLENOID_ON_MS
+#define SOLENOID_TEST_ON_MS CONFIG_LIGHT_GUN_SOLENOID_ON_MS
+#else
+#define SOLENOID_TEST_ON_MS 20U
+#endif
+#endif
+
+#ifndef SOLENOID_TEST_OFF_MS
+#ifdef CONFIG_LIGHT_GUN_SOLENOID_OFF_MS
+#define SOLENOID_TEST_OFF_MS CONFIG_LIGHT_GUN_SOLENOID_OFF_MS
+#else
+#define SOLENOID_TEST_OFF_MS 80U
+#endif
+#endif
+
+#ifndef SOLENOID_TEST_SINGLE_PERIOD_MS
+#ifdef CONFIG_LIGHT_GUN_SOLENOID_SINGLE_PERIOD_MS
+#define SOLENOID_TEST_SINGLE_PERIOD_MS CONFIG_LIGHT_GUN_SOLENOID_SINGLE_PERIOD_MS
+#else
+#define SOLENOID_TEST_SINGLE_PERIOD_MS 1000U
+#endif
+#endif
+
+#ifndef SOLENOID_TEST_CYCLE_REST_MS
+#ifdef CONFIG_LIGHT_GUN_SOLENOID_CYCLE_REST_MS
+#define SOLENOID_TEST_CYCLE_REST_MS CONFIG_LIGHT_GUN_SOLENOID_CYCLE_REST_MS
+#else
+#define SOLENOID_TEST_CYCLE_REST_MS 1500U
+#endif
+#endif
+
+#ifndef SOLENOID_TEST_AUTOFIRE_SHOTS
+#ifdef CONFIG_LIGHT_GUN_SOLENOID_AUTOFIRE_SHOTS
+#define SOLENOID_TEST_AUTOFIRE_SHOTS CONFIG_LIGHT_GUN_SOLENOID_AUTOFIRE_SHOTS
+#else
+#define SOLENOID_TEST_AUTOFIRE_SHOTS 5U
+#endif
+#endif
+
+#ifndef SOLENOID_TEST_BURST_SHOTS
+#ifdef CONFIG_LIGHT_GUN_SOLENOID_BURST_SHOTS
+#define SOLENOID_TEST_BURST_SHOTS CONFIG_LIGHT_GUN_SOLENOID_BURST_SHOTS
+#else
+#define SOLENOID_TEST_BURST_SHOTS 3U
+#endif
+#endif
+
+/*
+ * 线圈通电硬钳位。
+ *
+ * 不管外部请求多久，只要超过这个值，都会被强制截断。
+ * 这是最后一道保护，避免测试参数写错时把线圈一直吸住。
+ */
+#ifndef SOLENOID_TEST_MAX_ON_MS
+#ifdef CONFIG_LIGHT_GUN_SOLENOID_MAX_ON_MS
+#define SOLENOID_TEST_MAX_ON_MS CONFIG_LIGHT_GUN_SOLENOID_MAX_ON_MS
+#else
+#define SOLENOID_TEST_MAX_ON_MS 25U
+#endif
+#endif
+
+void solenoid_test_overlay_entry(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

@@ -1,0 +1,547 @@
+config SAMPLE_SUPPORT_DEMO_SLE_UART
+    bool
+    prompt "Enable Demo SLE UART Overlay"
+    default y
+    depends on SAMPLE_ENABLE
+    help
+        Build demo source from external project overlay.
+
+if SAMPLE_SUPPORT_DEMO_SLE_UART
+
+menu "Light Gun Test Objects"
+
+config LIGHT_GUN_TEST_ENABLE_SOLENOID
+    bool "Enable solenoid test"
+    default n
+    help
+        勾选后启动电磁铁闭环测试。
+
+config LIGHT_GUN_TEST_ENABLE_RUMBLE
+    bool "Enable rumble test"
+    default n
+    help
+        勾选后启动振动马达闭环测试。
+
+config LIGHT_GUN_TEST_ENABLE_IR
+    bool "Enable IR sensor test"
+    default n
+    help
+        勾选后启动 IR 传感器初始化、原始点读取和坐标解算测试。
+
+config LIGHT_GUN_TEST_ENABLE_USB_SIM
+    bool "Enable USB simulated closed-loop test"
+    default y
+    help
+        勾选后启动 USB 模拟闭环测试。
+
+endmenu
+
+menu "Solenoid Test Config"
+
+config LIGHT_GUN_SOLENOID_GPIO
+    int "Solenoid GPIO"
+    default 6
+    range 0 31
+    help
+        GPIO used by the solenoid driver input.
+
+choice LIGHT_GUN_SOLENOID_CASE
+    prompt "Solenoid test mode"
+    default LIGHT_GUN_SOLENOID_CASE_SINGLE_ONCE
+    help
+        Select which solenoid closed-loop test flow to run.
+
+config LIGHT_GUN_SOLENOID_CASE_SINGLE_ONCE
+    bool "Single pulse once"
+
+config LIGHT_GUN_SOLENOID_CASE_SINGLE_PERIODIC
+    bool "Periodic single pulse"
+
+config LIGHT_GUN_SOLENOID_CASE_AUTOFIRE_BOUNDED
+    bool "Bounded autofire"
+
+config LIGHT_GUN_SOLENOID_CASE_TRIPLE_BURST
+    bool "Triple burst"
+
+config LIGHT_GUN_SOLENOID_CASE_SAFETY_CLAMP
+    bool "Safety clamp"
+
+endchoice
+
+config LIGHT_GUN_SOLENOID_START_DELAY_MS
+    int "Solenoid start delay ms"
+    default 1500
+    range 100 10000
+
+config LIGHT_GUN_SOLENOID_ON_MS
+    int "Solenoid ON time ms"
+    default 20
+    range 1 100
+
+config LIGHT_GUN_SOLENOID_OFF_MS
+    int "Solenoid OFF gap ms"
+    default 80
+    range 1 1000
+
+config LIGHT_GUN_SOLENOID_SINGLE_PERIOD_MS
+    int "Solenoid periodic single cycle ms"
+    default 1000
+    range 100 10000
+
+config LIGHT_GUN_SOLENOID_CYCLE_REST_MS
+    int "Solenoid cycle rest ms"
+    default 1500
+    range 100 10000
+
+config LIGHT_GUN_SOLENOID_AUTOFIRE_SHOTS
+    int "Solenoid autofire shots per cycle"
+    default 5
+    range 1 20
+
+config LIGHT_GUN_SOLENOID_BURST_SHOTS
+    int "Solenoid burst shots per cycle"
+    default 3
+    range 1 10
+
+config LIGHT_GUN_SOLENOID_MAX_ON_MS
+    int "Solenoid hard max ON time ms"
+    default 25
+    range 1 100
+    help
+        Safety clamp for coil power-on time.
+
+endmenu
+
+menu "Rumble Test Config"
+
+config LIGHT_GUN_RUMBLE_PWM_CHANNEL
+    int "Rumble PWM channel"
+    default 1
+    range 0 11
+    help
+        PWM channel used to drive the rumble motor driver.
+
+config LIGHT_GUN_RUMBLE_PWM_GROUP_ID
+    int "Rumble PWM group id"
+    default 0
+    range 0 5
+    help
+        Used on PWM V151 path. The selected rumble PWM channel will be attached to this group before start.
+
+config LIGHT_GUN_RUMBLE_PWM_PIN
+    int "Rumble PWM pin"
+    default 1
+    range 0 31
+
+config LIGHT_GUN_RUMBLE_PWM_PIN_MODE
+    int "Rumble PWM pin mode"
+    default 42
+    help
+        GPIO1 接 PWM1 时，优先使用 42 做正向输出验证。
+        41/43/45... 这类值在当前芯片头文件注释里带有 COMP 含义，
+        更像互补输出脚，不适合先拿来做基础波形联调。
+
+choice LIGHT_GUN_RUMBLE_CASE
+    prompt "Rumble test mode"
+    default LIGHT_GUN_RUMBLE_CASE_CONTINUOUS_DIAG
+    help
+        Select which rumble closed-loop test flow to run.
+
+config LIGHT_GUN_RUMBLE_CASE_CONTINUOUS_DIAG
+    bool "Continuous PWM diagnostic"
+
+config LIGHT_GUN_RUMBLE_CASE_SINGLE_PULSE_ONCE
+    bool "Single pulse once"
+
+config LIGHT_GUN_RUMBLE_CASE_PERIODIC_PULSE
+    bool "Periodic pulse"
+
+config LIGHT_GUN_RUMBLE_CASE_BOUNDED_AUTOFIRE
+    bool "Bounded autofire"
+
+config LIGHT_GUN_RUMBLE_CASE_DUTY_SWEEP
+    bool "Duty sweep"
+
+config LIGHT_GUN_RUMBLE_CASE_SAFETY_CLAMP
+    bool "Safety clamp"
+
+endchoice
+
+config LIGHT_GUN_RUMBLE_START_DELAY_MS
+    int "Rumble start delay ms"
+    default 1500
+    range 100 10000
+
+config LIGHT_GUN_RUMBLE_LEVEL_PERCENT
+    int "Rumble default level percent"
+    default 70
+    range 0 100
+
+config LIGHT_GUN_RUMBLE_ACTIVE_MS
+    int "Rumble active time ms"
+    default 120
+    range 1 2000
+
+config LIGHT_GUN_RUMBLE_GAP_MS
+    int "Rumble gap ms"
+    default 180
+    range 1 2000
+
+config LIGHT_GUN_RUMBLE_PERIOD_MS
+    int "Rumble periodic cycle ms"
+    default 1000
+    range 100 10000
+
+config LIGHT_GUN_RUMBLE_CYCLE_REST_MS
+    int "Rumble cycle rest ms"
+    default 1500
+    range 100 10000
+
+config LIGHT_GUN_RUMBLE_AUTOFIRE_PULSES
+    int "Rumble autofire pulses per cycle"
+    default 5
+    range 1 20
+
+config LIGHT_GUN_RUMBLE_SWEEP_STEPS
+    int "Rumble duty sweep steps"
+    default 4
+    range 1 4
+
+config LIGHT_GUN_RUMBLE_MAX_LEVEL_PERCENT
+    int "Rumble hard max level percent"
+    default 100
+    range 1 100
+
+config LIGHT_GUN_RUMBLE_MAX_ACTIVE_MS
+    int "Rumble hard max active time ms"
+    default 300
+    range 1 5000
+
+endmenu
+
+menu "IR Sensor Test Config"
+
+config LIGHT_GUN_IR_I2C_BUS_ID
+    int "IR I2C bus id"
+    default 0
+    range 0 1
+    help
+        默认使用 I2C0。
+
+config LIGHT_GUN_IR_SCL_PIN
+    int "IR I2C SCL GPIO"
+    default 25
+    range 0 31
+
+config LIGHT_GUN_IR_SDA_PIN
+    int "IR I2C SDA GPIO"
+    default 26
+    range 0 31
+
+config LIGHT_GUN_IR_SCL_PIN_MODE
+    int "IR I2C SCL pin mode"
+    default 26
+    help
+        TR531x 上 I2C0 CLK 的默认 pinmux 枚举值为 26。
+
+config LIGHT_GUN_IR_SDA_PIN_MODE
+    int "IR I2C SDA pin mode"
+    default 27
+    help
+        TR531x 上 I2C0 DATA 的默认 pinmux 枚举值为 27。
+
+config LIGHT_GUN_IR_I2C_ADDR
+    hex "IR sensor I2C address"
+    default 0x58
+    help
+        Wii IR Camera 兼容模块通常使用 0x58。
+
+config LIGHT_GUN_IR_I2C_BAUDRATE
+    int "IR I2C baudrate"
+    default 200000
+    range 100000 1000000
+
+config LIGHT_GUN_IR_POLL_MS
+    int "IR poll interval ms"
+    default 20
+    range 5 1000
+    help
+        软件定时器轮询周期。20ms 便于先稳定抓日志。
+
+config LIGHT_GUN_IR_REPLAY_STEP_MS
+    int "IR replay step interval ms"
+    default 300
+    range 50 5000
+
+config LIGHT_GUN_IR_ATOMIC_RETRY
+    int "IR atomic read retry count"
+    default 2
+    range 0 2
+    help
+        对齐 OpenFIRE/DFRobot 的双帧稳定读取思路。
+
+config LIGHT_GUN_IR_SENSITIVITY
+    int "IR sensor sensitivity"
+    default 0
+    range 0 2
+    help
+        0=default, 1=high, 2=max。
+
+choice LIGHT_GUN_IR_CASE
+    prompt "IR test mode"
+    default LIGHT_GUN_IR_CASE_SOLVE_LIVE
+    help
+        选择当前要验证的 IR 测试流程。
+
+config LIGHT_GUN_IR_CASE_INIT_ONLY
+    bool "Init only"
+
+config LIGHT_GUN_IR_CASE_RAW_STREAM
+    bool "Raw point stream"
+
+config LIGHT_GUN_IR_CASE_SOLVE_LIVE
+    bool "Live solve"
+
+config LIGHT_GUN_IR_CASE_SOLVE_REPLAY
+    bool "Replay solve"
+
+endchoice
+
+config LIGHT_GUN_IR_SCREEN_WIDTH
+    int "Solved screen width"
+    default 1920
+    range 320 8192
+
+config LIGHT_GUN_IR_SCREEN_HEIGHT
+    int "Solved screen height"
+    default 1080
+    range 240 8192
+
+config LIGHT_GUN_IR_INVERT_X
+    bool "Invert solved X axis"
+    default n
+    help
+        当 IR 相机安装方向与枪体水平镜像时打开。
+
+config LIGHT_GUN_IR_INVERT_Y
+    bool "Invert solved Y axis"
+    default n
+    help
+        仅在上下方向也反了时再打开。
+
+config LIGHT_GUN_IR_CAM_MIN_X
+    int "Camera min X"
+    default 0
+    range 0 1023
+
+config LIGHT_GUN_IR_CAM_MAX_X
+    int "Camera max X"
+    default 1023
+    range 1 1023
+
+config LIGHT_GUN_IR_CAM_MIN_Y
+    int "Camera min Y"
+    default 0
+    range 0 767
+
+config LIGHT_GUN_IR_CAM_MAX_Y
+    int "Camera max Y"
+    default 767
+    range 1 767
+
+config LIGHT_GUN_IR_SMOOTH_PERCENT
+    int "IR smoothing percent"
+    default 35
+    range 0 95
+    help
+        0 表示不过滤，值越大表示越偏向历史值。
+
+config LIGHT_GUN_IR_MIN_POINTS_FOR_SOLVE
+    int "Minimum visible points for solve"
+    default 2
+    range 1 4
+    help
+        推荐保持 2，表示至少看到左右两个参考点才算稳定解算。
+
+config LIGHT_GUN_IR_COMPACT_LOG
+    bool "Enable IR compact debug log"
+    default y
+    help
+        打开后不会每一帧都刷完整日志，而是按状态变化或抽样打印，
+        更适合边联调边看串口。
+
+config LIGHT_GUN_IR_LOG_EVERY_N
+    int "IR compact log every N polls"
+    default 10
+    range 1 1000
+    help
+        仅在 compact log 打开时生效。
+
+config LIGHT_GUN_IR_SINGLE_POINT_DEGRADE
+    bool "Enable single-point degraded solve"
+    default y
+    help
+        当只有 1 个 IR 点时，允许退化成“单点直接映射”，
+        这样可以继续出一个近似坐标，方便先联调 USB 鼠标链路。
+
+endmenu
+
+menu "USB Sim Test Config"
+
+config LIGHT_GUN_USB_SIM_FAKE_IR
+    bool "Enable fake IR script"
+    default y
+    help
+        启用固定坐标脚本，模拟 IR 识别结果。
+
+config LIGHT_GUN_USB_SIM_FAKE_LED
+    bool "Enable fake LED log script"
+    default y
+    help
+        启用 LEDX ON/OFF 串口日志脚本。
+
+config LIGHT_GUN_USB_SIM_SCRIPT_MOUSE_MOVE
+    bool "Enable scripted mouse move"
+    default y
+    help
+        启用脚本化鼠标移动验证。
+
+config LIGHT_GUN_USB_SIM_SCRIPT_MOUSE_CLICK
+    bool "Enable scripted mouse click"
+    default y
+    help
+        启用脚本化鼠标按键点击验证。
+
+config LIGHT_GUN_USB_SIM_SCRIPT_KEYBOARD
+    bool "Enable scripted keyboard report"
+    default y
+    help
+        启用脚本化键盘 Enter / Esc 上报验证。
+
+config LIGHT_GUN_USB_SIM_GPIO_PASSTHROUGH
+    bool "Enable physical button passthrough"
+    default y
+    help
+        启用物理 GPIO 按键透传测试。
+
+config LIGHT_GUN_USB_SIM_TRIGGER_REF
+    bool "Enable OpenFIRE-style trigger reference"
+    default y
+    help
+        启用 onscreen / offscreen trigger 参考逻辑。
+        这个开关打开后，脚本或定时器会驱动屏内 / 屏外状态切换，
+        Trigger 键会按当前状态决定是发左键、右键还是抑制。
+
+config LIGHT_GUN_USB_SIM_USE_IR_LIVE_MOUSE
+    bool "Use live IR solve to drive USB mouse"
+    default n
+    help
+        打开后，USB 鼠标移动和屏内/屏外状态由真实 IR 解算结果驱动。
+        为避免两套鼠标业务互相打架，脚本化 mouse move / mouse click /
+        fake IR / trigger reference 会在运行时自动停用。
+
+choice LIGHT_GUN_USB_OFFSCREEN_MODE
+    prompt "Trigger offscreen behavior"
+    default LIGHT_GUN_USB_OFFSCREEN_MODE_RIGHT_CLICK
+    help
+        用来模拟 OpenFIRE 的“屏外开火”行为。
+
+config LIGHT_GUN_USB_OFFSCREEN_MODE_DISABLE
+    bool "Offscreen trigger suppressed"
+
+config LIGHT_GUN_USB_OFFSCREEN_MODE_RIGHT_CLICK
+    bool "Offscreen trigger -> right click"
+
+endchoice
+
+config LIGHT_GUN_USB_START_DELAY_MS
+    int "USB test start delay ms"
+    default 1500
+    range 100 10000
+
+config LIGHT_GUN_USB_POLL_MS
+    int "GPIO poll interval ms"
+    default 10
+    range 1 100
+
+config LIGHT_GUN_USB_DEBOUNCE_MS
+    int "GPIO debounce ms"
+    default 30
+    range 1 200
+
+config LIGHT_GUN_USB_SCRIPT_STEP_MS
+    int "Script step interval ms"
+    default 250
+    range 20 5000
+
+config LIGHT_GUN_USB_TRIGGER_MODE_TOGGLE_MS
+    int "Trigger reference state toggle ms"
+    default 4000
+    range 500 30000
+
+config LIGHT_GUN_USB_BTN_A_PIN
+    int "Button A GPIO"
+    default 23
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_B_PIN
+    int "Button B GPIO"
+    default 22
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_TRIGGER_PIN
+    int "Trigger GPIO"
+    default 21
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_START_PIN
+    int "START GPIO"
+    default 18
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_SELECT_PIN
+    int "SELECT GPIO"
+    default 17
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_HOME_PIN
+    int "HOME GPIO"
+    default 16
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_GAMEPAD_PIN
+    int "Gamepad GPIO (255 means disabled)"
+    default 255
+    range 0 255
+    help
+        你给的需求里这个引脚值未填写，所以这里默认禁用。
+        如果后续要接第三类 HID 或单独日志验证，再填真实 GPIO。
+
+config LIGHT_GUN_USB_BTN_UP_PIN
+    int "KEY_UP GPIO"
+    default 27
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_DOWN_PIN
+    int "KEY_DOWN GPIO"
+    default 28
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_LEFT_PIN
+    int "KEY_LEFT GPIO"
+    default 29
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_RIGHT_PIN
+    int "KEY_RIGHT GPIO"
+    default 30
+    range 0 31
+
+config LIGHT_GUN_USB_BTN_MIDDLE_PIN
+    int "KEY_MIDDLE GPIO"
+    default 0
+    range 0 31
+
+endmenu
+
+endif
