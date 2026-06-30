@@ -26,11 +26,6 @@ int svc_transport_route_init(void)
     return svc_route_switch(OF_TRANSPORT_SLE);
 }
 
-int svc_transport_route_auto(void)
-{
-    return svc_route_switch(OF_TRANSPORT_SLE);
-}
-
 int svc_transport_route_tick(void)
 {
     return svc_route_switch(OF_TRANSPORT_SLE);

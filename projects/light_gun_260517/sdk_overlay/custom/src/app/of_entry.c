@@ -19,9 +19,9 @@
 #include "services/svc_binding.h"
 #include "services/svc_calibration.h"
 #include "services/svc_position.h"
+#include "services/svc_transport_router.h"
 #include "services/svc_usb_hid.h"
 
-int svc_transport_route_auto(void);
 void of_runtime_once(void);
 static int g_runtime_task_started = 0;
 
@@ -81,7 +81,7 @@ void light_gun_260517_overlay_entry(void)
     }
 
     of_diag_init();
-    (void)svc_transport_route_auto();
+    (void)svc_transport_route_init();
     if (!g_runtime_task_started) {
         osal_task *task = osal_kthread_create(of_runtime_task, 0, "ofRuntime", 0x600);
         if (task != 0) {
