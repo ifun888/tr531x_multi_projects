@@ -25,6 +25,7 @@ static unsigned char g_buf[SLE_BUF_SZ];
 static unsigned int g_r = 0;
 static unsigned int g_w = 0;
 static int g_opened = 0;
+static uint8_t g_open_ref = 0U;
 static int g_connected = 0;
 static int g_searching = 0;
 static uint8_t g_tx_fault_cnt = 0U;
@@ -54,7 +55,15 @@ static void sle_rb_push(const uint8_t *buf, uint32_t len)
 static int sle_open(void *ctx)
 {
     (void)ctx;
+    if (g_opened != 0) {
+        if (g_open_ref < 0xFFU) {
+            g_open_ref++;
+        }
+        return 0;
+    }
+
     g_opened = 1;
+    g_open_ref = 1U;
     g_connected = 0;
     g_searching = 1;
     g_tx_fault_cnt = 0U;
@@ -66,7 +75,16 @@ static int sle_open(void *ctx)
 static int sle_close(void *ctx)
 {
     (void)ctx;
+    if (g_opened == 0) {
+        return 0;
+    }
+    if (g_open_ref > 1U) {
+        g_open_ref--;
+        return 0;
+    }
+
     g_opened = 0;
+    g_open_ref = 0U;
     g_connected = 0;
     g_searching = 0;
     g_tx_fault_cnt = 0U;

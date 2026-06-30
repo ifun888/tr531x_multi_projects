@@ -13,6 +13,7 @@
 #include "drivers/drv_temp_sensor.h"
 #include "drivers/drv_solenoid.h"
 #include "drivers/drv_rumble.h"
+#include "drivers/drv_sle_link.h"
 #include "drivers/drv_usb_hid.h"
 #include "services/svc_profile.h"
 #include "services/svc_binding.h"
@@ -47,6 +48,10 @@ static void of_init_peripherals(void)
     (void)drv_solenoid_init();
     (void)drv_rumble_init();
     (void)drv_usb_hid_init();
+    if ((drv_sle_link_get_dev() != 0) && (drv_sle_link_get_dev()->ops != 0) &&
+        (drv_sle_link_get_dev()->ops->open != 0)) {
+        (void)drv_sle_link_get_dev()->ops->open(drv_sle_link_get_dev()->priv);
+    }
     svc_usb_hid_init();
 }
 

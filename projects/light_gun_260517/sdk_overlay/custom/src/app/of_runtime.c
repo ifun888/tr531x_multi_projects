@@ -9,6 +9,7 @@
 #include "drivers/drv_temp_sensor.h"
 #include "drivers/drv_feedback.h"
 #include "drivers/drv_led.h"
+#include "drivers/drv_sle_link.h"
 #include "of_sm.h"
 #include "services/svc_binding.h"
 #include "services/svc_calibration.h"
@@ -155,6 +156,62 @@ static void of_monitor_periph_health(void)
     }
 }
 
+static void of_process_wireless_bytes(const uint8_t *rx, uint32_t got, of_wireless_stream_t *stream,
+    uint8_t *logged_stream_error)
+{
+    uint8_t pkt_type = 0U;
+    uint8_t payload[OF_WPKT_MAX_PAYLOAD];
+    uint32_t payload_len = 0U;
+
+    if ((rx == 0) || (got == 0U) || (stream == 0) || (logged_stream_error == 0)) {
+        return;
+    }
+
+    of_wireless_stream_feed(stream, rx, got);
+    for (;;) {
+        int stream_rc = of_wireless_stream_next(stream, &pkt_type, payload, sizeof(payload), &payload_len);
+
+        if (stream_rc == 0) {
+            break;
+        }
+        if (stream_rc < 0) {
+            if (*logged_stream_error == 0U) {
+                *logged_stream_error = 1U;
+                osal_printk("[openfire][gun] malformed wireless frame dropped\r\n");
+            }
+            continue;
+        }
+        if (of_link_on_wireless_packet(pkt_type, payload, payload_len)) {
+            continue;
+        }
+        if (pkt_type == OF_WPKT_TYPE_SERIAL_TUNNEL) {
+            if (!of_try_handle_stress_ping(payload, payload_len)) {
+                of_proto_docked_process(payload, payload_len);
+                of_proto_mh_process(payload, payload_len);
+            }
+        }
+    }
+}
+
+static void of_poll_background_sle(of_wireless_stream_t *stream, uint8_t *logged_stream_error)
+{
+    const of_dev_t *sle = drv_sle_link_get_dev();
+    uint8_t rx[64] = {0};
+    uint32_t got = 0U;
+
+    if (of_link_wireless_active()) {
+        return;
+    }
+    if ((sle == 0) || (sle->ops == 0) || (sle->ops->read == 0)) {
+        return;
+    }
+    if (sle->ops->read(sle->priv, rx, sizeof(rx), &got) != 0 || got == 0U) {
+        return;
+    }
+    of_diag_on_rx(got);
+    of_process_wireless_bytes(rx, got, stream, logged_stream_error);
+}
+
 void of_runtime_once(void)
 {
     extern uint64_t uapi_tcxo_get_us(void) __attribute__((weak));
@@ -167,9 +224,6 @@ void of_runtime_once(void)
     static const uint8_t hb_dongle[] = {'D','N','G','\n'};
     static of_wireless_stream_t s_wireless_rx;
     static uint8_t s_wireless_inited = 0U;
-    uint8_t pkt_type = 0U;
-    uint8_t payload[OF_WPKT_MAX_PAYLOAD];
-    uint32_t payload_len = 0U;
     static uint8_t s_logged_stream_error = 0U;
 
     if (s_wireless_inited == 0U) {
@@ -179,35 +233,12 @@ void of_runtime_once(void)
 
     (void)svc_transport_route_tick();
     of_link_tick();
+    of_poll_background_sle(&s_wireless_rx, &s_logged_stream_error);
 
     if (of_transport_read(rx, sizeof(rx), &got) == 0 && got > 0) {
         of_diag_on_rx(got);
         if (of_link_wireless_active()) {
-            of_wireless_stream_feed(&s_wireless_rx, rx, got);
-            for (;;) {
-                int stream_rc = of_wireless_stream_next(&s_wireless_rx, &pkt_type, payload, sizeof(payload),
-                    &payload_len);
-
-                if (stream_rc == 0) {
-                    break;
-                }
-                if (stream_rc < 0) {
-                    if (s_logged_stream_error == 0U) {
-                        s_logged_stream_error = 1U;
-                        osal_printk("[openfire][gun] malformed wireless frame dropped\r\n");
-                    }
-                    continue;
-                }
-                if (of_link_on_wireless_packet(pkt_type, payload, payload_len)) {
-                    continue;
-                }
-                if (pkt_type == OF_WPKT_TYPE_SERIAL_TUNNEL) {
-                    if (!of_try_handle_stress_ping(payload, payload_len)) {
-                        of_proto_docked_process(payload, payload_len);
-                        of_proto_mh_process(payload, payload_len);
-                    }
-                }
-            }
+            of_process_wireless_bytes(rx, got, &s_wireless_rx, &s_logged_stream_error);
         } else if (!of_try_handle_stress_ping(rx, got)) {
             of_proto_docked_process(rx, got);
             of_proto_mh_process(rx, got);

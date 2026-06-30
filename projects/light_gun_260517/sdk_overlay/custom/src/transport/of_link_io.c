@@ -23,14 +23,29 @@ static uint8_t g_link_hello_seen = 0U;
 static uint32_t g_link_last_hello_ms = 0U;
 static uint32_t g_link_wait_start_ms = 0U;
 
+static int link_phy_active(void)
+{
+    return drv_sle_link_is_ready();
+}
+
 int of_link_wireless_active(void)
 {
-    return (of_transport_get_type() == OF_TRANSPORT_SLE) && drv_sle_link_is_ready();
+    return (of_transport_get_type() == OF_TRANSPORT_SLE) && link_phy_active();
 }
 
 int of_link_is_ready(void)
 {
-    return of_link_wireless_active() && (g_link_ready != 0U);
+    return link_phy_active() && (g_link_ready != 0U);
+}
+
+static int link_raw_sle_write(const uint8_t *buf, uint32_t len, uint32_t *out_len)
+{
+    const of_dev_t *sle = drv_sle_link_get_dev();
+
+    if ((sle == 0) || (sle->ops == 0) || (sle->ops->write == 0)) {
+        return -1;
+    }
+    return sle->ops->write(sle->priv, buf, len, out_len);
 }
 
 void of_link_tick(void)
@@ -38,7 +53,7 @@ void of_link_tick(void)
     uint32_t now_ms;
     uint32_t sent = 0U;
 
-    if (!of_link_wireless_active()) {
+    if (!link_phy_active()) {
         g_link_ready = 0U;
         g_link_hello_seen = 0U;
         g_link_last_hello_ms = 0U;
@@ -106,13 +121,23 @@ int of_link_send_packet(uint8_t type, const uint8_t *payload, uint32_t payload_l
     if (out_len != 0) {
         *out_len = 0U;
     }
-    if (!of_link_wireless_active()) {
+    if (!link_phy_active()) {
         return -1;
     }
     if (of_wireless_pkt_encode(type, payload, payload_len, frame, sizeof(frame), &frame_len) != 0) {
         return -1;
     }
-    if (of_transport_write(frame, frame_len, out_len) != 0) {
+    if (of_link_wireless_active()) {
+        if (of_transport_write(frame, frame_len, out_len) != 0) {
+            drv_sle_link_note_tx_fault();
+            return -1;
+        }
+        return 0;
+    }
+    if ((type != OF_WPKT_TYPE_LINK_HELLO) && (type != OF_WPKT_TYPE_LINK_HELLO_ACK)) {
+        return -1;
+    }
+    if (link_raw_sle_write(frame, frame_len, out_len) != 0) {
         drv_sle_link_note_tx_fault();
         return -1;
     }
