@@ -47,11 +47,11 @@ int svc_transport_route_init(of_link_type_t link)
 
 int svc_transport_route_auto(void)
 {
-    if (drv_usb_cdc_is_ready()) {
-        return svc_route_switch(OF_TRANSPORT_USB_CDC);
-    }
     if (of_link_is_ready()) {
         return svc_route_switch(OF_TRANSPORT_SLE);
+    }
+    if (drv_usb_cdc_is_ready()) {
+        return svc_route_switch(OF_TRANSPORT_USB_CDC);
     }
     return -1;
 }
@@ -68,11 +68,11 @@ int svc_transport_route_tick(void)
     g_usb_stable = usb_ready ? (g_usb_stable + 1U) : 0U;
     g_sle_stable = sle_ready ? (g_sle_stable + 1U) : 0U;
 
-    if (g_usb_stable >= stable_th) {
-        return svc_route_switch(OF_TRANSPORT_USB_CDC);
-    }
     if (g_sle_stable >= stable_th) {
         return svc_route_switch(OF_TRANSPORT_SLE);
+    }
+    if (g_usb_stable >= stable_th) {
+        return svc_route_switch(OF_TRANSPORT_USB_CDC);
     }
     return 0;
 }
