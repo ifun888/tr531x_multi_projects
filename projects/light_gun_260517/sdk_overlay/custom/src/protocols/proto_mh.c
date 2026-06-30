@@ -26,6 +26,7 @@ typedef struct {
     uint8_t autofire_mode;
     uint8_t autofire_interval;
     uint8_t player_slot;
+    uint8_t gamepad_aim_with_left_stick;
 } of_mh_state_t;
 
 static of_mh_state_t g_mh;
@@ -89,7 +90,7 @@ static void mh_reply_status(void)
 {
     char rsp[96];
     int n = snprintf(rsp, sizeof(rsp),
-        "MH S=%u M=%u F0=%u F1=%u RGB=%u,%u,%u D=%c:%u I=%u O=%u P=%u A=%u R=%u AF=%u AI=%u PL=%u\n",
+        "MH S=%u M=%u F0=%u F1=%u RGB=%u,%u,%u D=%c:%u I=%u O=%u P=%u A=%u R=%u AF=%u AI=%u PL=%u GL=%u\n",
         (unsigned)g_mh.session_on, (unsigned)of_proto_get_mode(),
         (unsigned)g_mh.ffb_solenoid, (unsigned)g_mh.ffb_rumble,
         (unsigned)g_mh.rgb_r, (unsigned)g_mh.rgb_g, (unsigned)g_mh.rgb_b,
@@ -97,11 +98,27 @@ static void mh_reply_status(void)
         (unsigned)g_mh.input_mode, (unsigned)g_mh.offscreen_mode,
         (unsigned)g_mh.pedal_mode, (unsigned)g_mh.ar_correction,
         (unsigned)g_mh.rumble_mode, (unsigned)g_mh.autofire_mode,
-        (unsigned)g_mh.autofire_interval, (unsigned)g_mh.player_slot);
+        (unsigned)g_mh.autofire_interval, (unsigned)g_mh.player_slot,
+        (unsigned)g_mh.gamepad_aim_with_left_stick);
     if (n > 0) {
         uint32_t sent = 0;
         (void)of_link_send_serial((const uint8_t *)rsp, (uint32_t)n, &sent);
     }
+}
+
+uint8_t of_proto_mh_input_mode(void)
+{
+    return g_mh.input_mode;
+}
+
+int of_proto_mh_gamepad_enabled(void)
+{
+    return (g_mh.input_mode == 1U) || (g_mh.input_mode == 9U);
+}
+
+int of_proto_mh_gamepad_aim_with_left_stick(void)
+{
+    return (g_mh.gamepad_aim_with_left_stick != 0U);
 }
 
 void of_proto_mh_process(const uint8_t *buf, uint32_t len)
@@ -135,6 +152,13 @@ void of_proto_mh_process(const uint8_t *buf, uint32_t len)
     if ((len >= 2U) && (buf[0] == 'M')) {
         if ((buf[1] == '0') && (len >= 4U)) {
             g_mh.input_mode = (uint8_t)(buf[3] - '0');
+            g_mh.gamepad_aim_with_left_stick = 0U;
+            if ((g_mh.input_mode == 1U) && (len >= 5U) && (buf[4] == 'L')) {
+                g_mh.gamepad_aim_with_left_stick = 1U;
+            }
+            if (g_mh.input_mode == 9U) {
+                g_mh.gamepad_aim_with_left_stick = 1U;
+            }
             mh_reply("MODE\n");
             return;
         }
@@ -245,6 +269,8 @@ void of_proto_mh_process(const uint8_t *buf, uint32_t len)
         mh_reply("START\n");
     } else if (buf[0] == 'E') {
         g_mh.session_on = 0U;
+        g_mh.input_mode = 0U;
+        g_mh.gamepad_aim_with_left_stick = 0U;
         g_mh.ar_correction = 0U;
         g_mh.offscreen_mode = 0U;
         g_mh.pedal_mode = 0U;

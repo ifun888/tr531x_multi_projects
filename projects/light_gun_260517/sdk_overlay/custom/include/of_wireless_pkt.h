@@ -30,6 +30,17 @@ typedef struct {
     uint8_t keys[6];
 } of_wpkt_keyboard_payload_t;
 
+typedef struct __attribute__((packed)) {
+    int16_t x;
+    int16_t y;
+    int16_t z;
+    int16_t rz;
+    int16_t rx;
+    int16_t ry;
+    uint8_t hat;
+    uint32_t buttons;
+} of_wpkt_gamepad_payload_t;
+
 typedef struct {
     uint8_t buf[OF_WPKT_STREAM_BUF_SZ];
     uint32_t len;

@@ -92,6 +92,8 @@ static void of_bridge_sle_to_usb_and_hid(void)
         } else if ((pkt_type == OF_WPKT_TYPE_HID_KEYBOARD) && (payload_len == sizeof(of_wpkt_keyboard_payload_t))) {
             const of_wpkt_keyboard_payload_t *pkt = (const of_wpkt_keyboard_payload_t *)payload;
             (void)drv_usb_hid_send_keyboard_report(pkt->keys, pkt->key_count);
+        } else if ((pkt_type == OF_WPKT_TYPE_HID_GAMEPAD) && (payload_len == sizeof(of_wpkt_gamepad_payload_t))) {
+            (void)drv_usb_hid_send_gamepad_report(payload, payload_len);
         } else if (s_logged_unsupported[pkt_type] == 0U) {
             s_logged_unsupported[pkt_type] = 1U;
             osal_printk("[openfire][dongle] unsupported wireless pkt type=%u len=%u\r\n",

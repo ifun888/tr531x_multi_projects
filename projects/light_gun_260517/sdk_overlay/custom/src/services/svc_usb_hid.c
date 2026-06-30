@@ -10,6 +10,7 @@
 #include "drivers/drv_usb_hid.h"
 #include "of_link_io.h"
 #include "of_fops.h"
+#include "of_protocol.h"
 #include "of_transport.h"
 #include "osal_debug.h"
 #include "platform/of_time.h"
@@ -41,6 +42,26 @@
 #define HID_KEY_DOWN   0x51U
 #define HID_KEY_UP     0x52U
 
+#define OF_GPAD_HAT_CENTERED   0U
+#define OF_GPAD_HAT_UP         1U
+#define OF_GPAD_HAT_UP_RIGHT   2U
+#define OF_GPAD_HAT_RIGHT      3U
+#define OF_GPAD_HAT_DOWN_RIGHT 4U
+#define OF_GPAD_HAT_DOWN       5U
+#define OF_GPAD_HAT_DOWN_LEFT  6U
+#define OF_GPAD_HAT_LEFT       7U
+#define OF_GPAD_HAT_UP_LEFT    8U
+
+#define OF_GPAD_BTN_A      0U
+#define OF_GPAD_BTN_B      1U
+#define OF_GPAD_BTN_X      3U
+#define OF_GPAD_BTN_Y      4U
+#define OF_GPAD_BTN_SELECT 10U
+#define OF_GPAD_BTN_START  11U
+#define OF_GPAD_BTN_HOME   12U
+#define OF_POS_SCREEN_MAX_X 1919U
+#define OF_POS_SCREEN_MAX_Y 1079U
+
 typedef struct {
     uint8_t active;
     uint8_t link_fail_count;
@@ -48,6 +69,7 @@ typedef struct {
     uint8_t mouse_buttons;
     uint8_t key_count;
     uint8_t keyboard_keys[6];
+    of_wpkt_gamepad_payload_t gamepad_report;
     uint16_t prev_x;
     uint16_t prev_y;
     uint16_t prev_keys;
@@ -114,6 +136,100 @@ static void hid_build_keyboard_report(uint16_t keys_mask, uint8_t *keys, uint8_t
     }
 }
 
+static int16_t hid_map_axis_u16(uint16_t value, uint16_t max_value)
+{
+    int32_t scaled;
+
+    if (value >= max_value) {
+        return 32767;
+    }
+    scaled = ((int32_t)value * 65534) / (int32_t)max_value;
+    return (int16_t)(scaled - 32767);
+}
+
+static uint8_t hid_build_gamepad_hat(uint16_t keys_mask)
+{
+    uint8_t up = ((keys_mask & OF_KEY_MASK_UP) != 0U) ? 1U : 0U;
+    uint8_t down = ((keys_mask & OF_KEY_MASK_DOWN) != 0U) ? 1U : 0U;
+    uint8_t left = ((keys_mask & OF_KEY_MASK_LEFT) != 0U) ? 1U : 0U;
+    uint8_t right = ((keys_mask & OF_KEY_MASK_RIGHT) != 0U) ? 1U : 0U;
+
+    if (up && right && !down && !left) {
+        return OF_GPAD_HAT_UP_RIGHT;
+    }
+    if (down && right && !up && !left) {
+        return OF_GPAD_HAT_DOWN_RIGHT;
+    }
+    if (down && left && !up && !right) {
+        return OF_GPAD_HAT_DOWN_LEFT;
+    }
+    if (up && left && !down && !right) {
+        return OF_GPAD_HAT_UP_LEFT;
+    }
+    if (up && !down) {
+        return OF_GPAD_HAT_UP;
+    }
+    if (down && !up) {
+        return OF_GPAD_HAT_DOWN;
+    }
+    if (left && !right) {
+        return OF_GPAD_HAT_LEFT;
+    }
+    if (right && !left) {
+        return OF_GPAD_HAT_RIGHT;
+    }
+    return OF_GPAD_HAT_CENTERED;
+}
+
+static uint32_t hid_build_gamepad_buttons(uint16_t keys_mask)
+{
+    uint32_t buttons = 0U;
+
+    if ((keys_mask & OF_KEY_MASK_TRIGGER) != 0U) {
+        buttons |= (1UL << OF_GPAD_BTN_A);
+    }
+    if ((keys_mask & OF_KEY_MASK_A) != 0U) {
+        buttons |= (1UL << OF_GPAD_BTN_B);
+    }
+    if ((keys_mask & OF_KEY_MASK_B) != 0U) {
+        buttons |= (1UL << OF_GPAD_BTN_X);
+    }
+    if ((keys_mask & OF_KEY_MASK_MIDDLE) != 0U) {
+        buttons |= (1UL << OF_GPAD_BTN_Y);
+    }
+    if ((keys_mask & OF_KEY_MASK_SELECT) != 0U) {
+        buttons |= (1UL << OF_GPAD_BTN_SELECT);
+    }
+    if ((keys_mask & OF_KEY_MASK_START) != 0U) {
+        buttons |= (1UL << OF_GPAD_BTN_START);
+    }
+    if ((keys_mask & OF_KEY_MASK_HOME) != 0U) {
+        buttons |= (1UL << OF_GPAD_BTN_HOME);
+    }
+    return buttons;
+}
+
+static void hid_build_gamepad_report(of_wpkt_gamepad_payload_t *pkt, const of_pos_sample_t *pos, uint16_t keys_mask)
+{
+    int use_left_stick = of_proto_mh_gamepad_aim_with_left_stick();
+
+    (void)memset(pkt, 0, sizeof(*pkt));
+    pkt->hat = hid_build_gamepad_hat(keys_mask);
+    pkt->buttons = hid_build_gamepad_buttons(keys_mask);
+
+    if ((pos->valid == 0U) || (pos->seen_count < 2U)) {
+        return;
+    }
+
+    if (use_left_stick) {
+        pkt->x = hid_map_axis_u16(pos->x, OF_POS_SCREEN_MAX_X);
+        pkt->y = hid_map_axis_u16(pos->y, OF_POS_SCREEN_MAX_Y);
+    } else {
+        pkt->rx = hid_map_axis_u16(pos->x, OF_POS_SCREEN_MAX_X);
+        pkt->ry = hid_map_axis_u16(pos->y, OF_POS_SCREEN_MAX_Y);
+    }
+}
+
 void svc_usb_hid_init(void)
 {
     (void)memset(&g_hid, 0, sizeof(g_hid));
@@ -133,6 +249,7 @@ void svc_usb_hid_tick(void)
     int32_t dy = 0;
     uint32_t now_ms = (uint32_t)(of_time_us() / 1000U);
     int wireless_active = (of_transport_get_type() == OF_TRANSPORT_SLE) && drv_sle_link_is_ready();
+    int wireless_gamepad_mode = wireless_active && of_proto_mh_gamepad_enabled();
 
     if (!wireless_active && !drv_usb_hid_is_ready()) {
         if ((now_ms - g_hid.probe_last_ms) < OF_USB_HID_PROBE_INTERVAL_MS) {
@@ -189,7 +306,31 @@ void svc_usb_hid_tick(void)
 
     hid_build_keyboard_report(keys_mask, keyboard_keys, &keyboard_count);
 
-    if ((dx != 0) || (dy != 0) || (mouse_buttons != g_hid.mouse_buttons)) {
+    if (wireless_gamepad_mode) {
+        of_wpkt_gamepad_payload_t pkt;
+
+        hid_build_gamepad_report(&pkt, &pos, keys_mask);
+        if (memcmp(&pkt, &g_hid.gamepad_report, sizeof(pkt)) != 0) {
+            uint32_t sent = 0U;
+            int rc = of_link_send_packet(OF_WPKT_TYPE_HID_GAMEPAD, (const uint8_t *)&pkt, sizeof(pkt), &sent);
+
+            if (rc == 0) {
+                g_hid.active = 1U;
+                g_hid.link_fail_count = 0U;
+                g_hid.gamepad_report = pkt;
+                g_hid.mouse_buttons = 0U;
+                g_hid.key_count = 0U;
+                (void)memset(g_hid.keyboard_keys, 0, sizeof(g_hid.keyboard_keys));
+                osal_printk("[svc_usb_hid] gamepad buttons=0x%08x hat=%u lx=%d ly=%d rx=%d ry=%d.\r\n",
+                    (unsigned int)pkt.buttons, (unsigned int)pkt.hat,
+                    (int)pkt.x, (int)pkt.y, (int)pkt.rx, (int)pkt.ry);
+            } else if (g_hid.link_fail_count < 0xFFU) {
+                g_hid.link_fail_count++;
+                osal_printk("[svc_usb_hid] gamepad report send failed, buttons=0x%08x hat=%u.\r\n",
+                    (unsigned int)pkt.buttons, (unsigned int)pkt.hat);
+            }
+        }
+    } else if ((dx != 0) || (dy != 0) || (mouse_buttons != g_hid.mouse_buttons)) {
         int rc;
         if (wireless_active) {
             of_wpkt_mouse_payload_t pkt = {
@@ -207,6 +348,7 @@ void svc_usb_hid_tick(void)
             g_hid.active = 1U;
             g_hid.link_fail_count = 0U;
             g_hid.mouse_buttons = mouse_buttons;
+            (void)memset(&g_hid.gamepad_report, 0, sizeof(g_hid.gamepad_report));
             osal_printk("[svc_usb_hid] mouse dx=%d dy=%d buttons=0x%02x pos_valid=%u.\r\n",
                 (int)hid_clamp_i8(dx), (int)hid_clamp_i8(dy),
                 (unsigned int)mouse_buttons, (unsigned int)pos.valid);
@@ -217,8 +359,9 @@ void svc_usb_hid_tick(void)
         }
     }
 
-    if ((keyboard_count != g_hid.key_count) ||
-        (memcmp(keyboard_keys, g_hid.keyboard_keys, sizeof(keyboard_keys)) != 0)) {
+    if (!wireless_gamepad_mode &&
+        ((keyboard_count != g_hid.key_count) ||
+        (memcmp(keyboard_keys, g_hid.keyboard_keys, sizeof(keyboard_keys)) != 0))) {
         int rc;
         if (wireless_active) {
             of_wpkt_keyboard_payload_t pkt;
@@ -252,6 +395,7 @@ void svc_usb_hid_tick(void)
         g_hid.mouse_buttons = 0U;
         g_hid.key_count = 0U;
         (void)memset(g_hid.keyboard_keys, 0, sizeof(g_hid.keyboard_keys));
+        (void)memset(&g_hid.gamepad_report, 0, sizeof(g_hid.gamepad_report));
         osal_printk("[svc_usb_hid] HID link lost, pause reports and wait re-probe.\r\n");
     }
 

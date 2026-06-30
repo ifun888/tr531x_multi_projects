@@ -6,6 +6,7 @@
 #include "common_def.h"
 #include "gadget/f_hid.h"
 #include "implementation/usb_init.h"
+#include "of_wireless_pkt.h"
 #include "osal_debug.h"
 #include "soc_osal.h"
 
@@ -22,6 +23,7 @@
 #define USB_HID_INIT_DELAY_MS 500U
 #define USB_HID_KEYBOARD_REPORT_LEN 9U
 #define USB_HID_MOUSE_REPORT_LEN 5U
+#define USB_HID_GAMEPAD_REPORT_LEN 18U
 #define USB_HID_MAX_KEYS 6U
 
 #define input(size)             (0x80 | (size))
@@ -62,6 +64,18 @@ typedef struct {
     uint8_t reserve;
     uint8_t key[USB_HID_MAX_KEYS];
 } usb_hid_keyboard_report_t;
+
+typedef struct __attribute__((packed)) {
+    uint8_t kind;
+    int16_t x;
+    int16_t y;
+    int16_t z;
+    int16_t rz;
+    int16_t rx;
+    int16_t ry;
+    uint8_t hat;
+    uint32_t buttons;
+} usb_hid_gamepad_report_t;
 
 static const uint8_t g_usb_hid_report_desc_keyboard[] = {
     usage_page(1),      0x01,
@@ -130,10 +144,48 @@ static const uint8_t g_usb_hid_report_desc_mouse[] = {
     end_collection(0),
 };
 
+static const uint8_t g_usb_hid_report_desc_gamepad[] = {
+    usage_page(1),      0x01,
+    usage(1),           0x05,
+    collection(1),      0x01,
+    report_id(1),       0x03,
+    usage_page(1),      0x01,
+    usage(1),           0x30,
+    usage(1),           0x31,
+    usage(1),           0x32,
+    usage(1),           0x35,
+    usage(1),           0x33,
+    usage(1),           0x34,
+    logical_minimum(2), 0x01, 0x80,
+    logical_maximum(2), 0xFF, 0x7F,
+    report_count(1),    0x06,
+    report_size(1),     0x10,
+    input(1),           0x02,
+    usage_page(1),      0x01,
+    usage(1),           0x39,
+    logical_minimum(1), 0x01,
+    logical_maximum(1), 0x08,
+    0x35,               0x00,
+    0x46,               0x3B, 0x01,
+    report_count(1),    0x01,
+    report_size(1),     0x08,
+    input(1),           0x02,
+    usage_page(1),      0x09,
+    usage_minimum(1),   0x01,
+    usage_maximum(1),   0x20,
+    logical_minimum(1), 0x00,
+    logical_maximum(1), 0x01,
+    report_count(1),    0x20,
+    report_size(1),     0x01,
+    input(1),           0x02,
+    end_collection(0),
+};
+
 static uint8_t g_usb_hid_inited;
 static uint8_t g_usb_hid_ready;
 static uint8_t g_usb_hid_keyboard_index;
 static uint8_t g_usb_hid_mouse_index;
+static uint8_t g_usb_hid_gamepad_index;
 
 static int usb_hid_send_mouse_raw(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel)
 {
@@ -174,6 +226,26 @@ static int usb_hid_send_keyboard_raw(const uint8_t *keys, uint8_t key_count)
     return (ret < 0) ? -1 : 0;
 }
 
+static int usb_hid_send_gamepad_raw(const void *report, uint32_t report_len)
+{
+    usb_hid_gamepad_report_t rpt;
+    int32_t ret;
+
+    if ((report == 0) || (report_len != sizeof(of_wpkt_gamepad_payload_t))) {
+        return -1;
+    }
+    if (g_usb_hid_inited == 0U) {
+        return -1;
+    }
+
+    (void)memset(&rpt, 0, sizeof(rpt));
+    rpt.kind = 0x03U;
+    (void)memcpy(&rpt.x, report, report_len);
+
+    ret = (int32_t)fhid_send_data(g_usb_hid_gamepad_index, (char *)&rpt, USB_HID_GAMEPAD_REPORT_LEN);
+    return (ret < 0) ? -1 : 0;
+}
+
 int drv_usb_hid_init(void)
 {
     const char manufacturer[] = { 'O', 0, 'B', 0, 'T', 0 };
@@ -200,6 +272,8 @@ int drv_usb_hid_init(void)
         g_usb_hid_report_desc_keyboard, sizeof(g_usb_hid_report_desc_keyboard), 1);
     g_usb_hid_mouse_index = (uint8_t)hid_add_report_descriptor(
         g_usb_hid_report_desc_mouse, sizeof(g_usb_hid_report_desc_mouse), 2);
+    g_usb_hid_gamepad_index = (uint8_t)hid_add_report_descriptor(
+        g_usb_hid_report_desc_gamepad, sizeof(g_usb_hid_report_desc_gamepad), 3);
 
     if (usbd_set_device_info(DEV_HID, &str_manufacturer, &str_product, &str_serial_number, dev_id) != 0) {
         osal_printk("[drv_usb_hid] usbd_set_device_info failed.\r\n");
@@ -213,8 +287,9 @@ int drv_usb_hid_init(void)
     osal_msleep(OF_USB_HID_INIT_DELAY_MS);
     g_usb_hid_inited = 1U;
     g_usb_hid_ready = 0U;
-    osal_printk("[drv_usb_hid] init ok, keyboard_index=%u mouse_index=%u.\r\n",
-        (unsigned int)g_usb_hid_keyboard_index, (unsigned int)g_usb_hid_mouse_index);
+    osal_printk("[drv_usb_hid] init ok, keyboard_index=%u mouse_index=%u gamepad_index=%u.\r\n",
+        (unsigned int)g_usb_hid_keyboard_index, (unsigned int)g_usb_hid_mouse_index,
+        (unsigned int)g_usb_hid_gamepad_index);
     return 0;
 }
 
@@ -247,6 +322,14 @@ int drv_usb_hid_send_keyboard_report(const uint8_t *keys, uint8_t key_count)
         return -1;
     }
     return usb_hid_send_keyboard_raw(keys, key_count);
+}
+
+int drv_usb_hid_send_gamepad_report(const void *report, uint32_t report_len)
+{
+    if (g_usb_hid_ready == 0U) {
+        return -1;
+    }
+    return usb_hid_send_gamepad_raw(report, report_len);
 }
 
 int drv_usb_hid_probe_ready(void)
