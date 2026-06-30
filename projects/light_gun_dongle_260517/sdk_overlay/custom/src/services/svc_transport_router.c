@@ -1,5 +1,6 @@
 #include "of_transport.h"
 #include "of_types.h"
+#include "of_link_io.h"
 #include "drivers/drv_usb_cdc.h"
 #include "drivers/drv_sle_link.h"
 
@@ -49,7 +50,7 @@ int svc_transport_route_auto(void)
     if (drv_usb_cdc_is_ready()) {
         return svc_route_switch(OF_TRANSPORT_USB_CDC);
     }
-    if (drv_sle_link_is_ready()) {
+    if (of_link_is_ready()) {
         return svc_route_switch(OF_TRANSPORT_SLE);
     }
     return -1;
@@ -58,7 +59,7 @@ int svc_transport_route_auto(void)
 int svc_transport_route_tick(void)
 {
     int usb_ready = drv_usb_cdc_is_ready();
-    int sle_ready = drv_sle_link_is_ready();
+    int sle_ready = of_link_is_ready();
     const uint32_t stable_th = 5U;
     if (g_switch_cooldown > 0U) {
         g_switch_cooldown--;
