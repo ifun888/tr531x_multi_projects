@@ -15,6 +15,26 @@
 #define OF_ENABLE_HEARTBEAT 0
 #endif
 
+static void of_release_hid_on_disconnect(void)
+{
+    static uint8_t s_prev_link_ready = 0U;
+    static uint8_t s_pending_release = 0U;
+    uint8_t link_ready = (uint8_t)(of_link_is_ready() ? 1U : 0U);
+
+    if ((s_prev_link_ready != 0U) && (link_ready == 0U)) {
+        s_pending_release = 1U;
+        osal_printk("[openfire][dongle] sle link lost, schedule hid release\r\n");
+    }
+    s_prev_link_ready = link_ready;
+
+    if ((s_pending_release != 0U) && drv_usb_hid_is_ready()) {
+        if (drv_usb_hid_release_all() == 0) {
+            s_pending_release = 0U;
+            osal_printk("[openfire][dongle] hid release sent after disconnect\r\n");
+        }
+    }
+}
+
 static void of_bridge_usb_to_sle(void)
 {
     const of_dev_t *usb = drv_usb_cdc_get_dev();
@@ -105,6 +125,7 @@ static void of_bridge_sle_to_usb_and_hid(void)
 void of_runtime_once(void)
 {
     of_link_tick();
+    of_release_hid_on_disconnect();
     of_bridge_usb_to_sle();
     of_bridge_sle_to_usb_and_hid();
     of_diag_tick();

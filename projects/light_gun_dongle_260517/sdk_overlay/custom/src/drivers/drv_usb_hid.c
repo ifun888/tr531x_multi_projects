@@ -341,3 +341,24 @@ int drv_usb_hid_probe_ready(void)
     }
     return usb_hid_send_mouse_raw(0U, 0, 0, 0);
 }
+
+int drv_usb_hid_release_all(void)
+{
+    static const uint8_t empty_keys[1] = {0};
+    static const of_wpkt_gamepad_payload_t zero_gamepad = {0};
+    int rc = 0;
+
+    if (g_usb_hid_ready == 0U) {
+        return -1;
+    }
+    if (drv_usb_hid_send_mouse_report(0U, 0, 0, 0) != 0) {
+        rc = -1;
+    }
+    if (drv_usb_hid_send_keyboard_report(empty_keys, 0U) != 0) {
+        rc = -1;
+    }
+    if (drv_usb_hid_send_gamepad_report(&zero_gamepad, sizeof(zero_gamepad)) != 0) {
+        rc = -1;
+    }
+    return rc;
+}
