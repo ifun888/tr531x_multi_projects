@@ -89,6 +89,14 @@ static void hid_reset_cached_reports(void)
     (void)memset(&g_hid.gamepad_report, 0, sizeof(g_hid.gamepad_report));
 }
 
+static void hid_reset_motion_history(void)
+{
+    g_hid.prev_x = 0U;
+    g_hid.prev_y = 0U;
+    g_hid.prev_keys = 0U;
+    g_hid.prev_valid = 0U;
+}
+
 static int hid_gamepad_report_is_zero(const of_wpkt_gamepad_payload_t *pkt)
 {
     static const of_wpkt_gamepad_payload_t zero_pkt = {0};
@@ -312,7 +320,8 @@ void svc_usb_hid_tick(void)
     int32_t dx = 0;
     int32_t dy = 0;
     uint32_t now_ms = (uint32_t)(of_time_us() / 1000U);
-    int wireless_active = (of_transport_get_type() == OF_TRANSPORT_SLE) && drv_sle_link_is_ready();
+    int wireless_link_up = (of_transport_get_type() == OF_TRANSPORT_SLE) && drv_sle_link_is_ready();
+    int wireless_active = wireless_link_up && of_link_is_ready();
     int wireless_gamepad_mode = wireless_active && of_proto_mh_gamepad_enabled();
     uint8_t route_changed = ((uint8_t)wireless_active != g_hid.route_wireless_active) ||
         ((uint8_t)wireless_gamepad_mode != g_hid.route_wireless_gamepad_mode);
@@ -322,11 +331,12 @@ void svc_usb_hid_tick(void)
             hid_release_previous_wireless_family(g_hid.route_wireless_gamepad_mode);
         }
         hid_reset_cached_reports();
+        hid_reset_motion_history();
         g_hid.route_wireless_active = (uint8_t)wireless_active;
         g_hid.route_wireless_gamepad_mode = (uint8_t)wireless_gamepad_mode;
     }
 
-    if (!wireless_active && !drv_usb_hid_is_ready()) {
+    if (!wireless_link_up && !drv_usb_hid_is_ready()) {
         if ((now_ms - g_hid.probe_last_ms) < OF_USB_HID_PROBE_INTERVAL_MS) {
             return;
         }
@@ -342,6 +352,11 @@ void svc_usb_hid_tick(void)
             }
             g_hid.probed_once = 1U;
         }
+        return;
+    }
+
+    if (wireless_link_up && !wireless_active) {
+        hid_reset_motion_history();
         return;
     }
 
@@ -464,11 +479,12 @@ void svc_usb_hid_tick(void)
         }
     }
 
-    if (!wireless_active && (g_hid.link_fail_count >= OF_USB_HID_LINK_FAIL_THRESHOLD)) {
+    if (!wireless_link_up && (g_hid.link_fail_count >= OF_USB_HID_LINK_FAIL_THRESHOLD)) {
         drv_usb_hid_set_ready(0);
         g_hid.active = 0U;
         g_hid.link_fail_count = 0U;
         hid_reset_cached_reports();
+        hid_reset_motion_history();
         osal_printk("[svc_usb_hid] HID link lost, pause reports and wait re-probe.\r\n");
     }
 
