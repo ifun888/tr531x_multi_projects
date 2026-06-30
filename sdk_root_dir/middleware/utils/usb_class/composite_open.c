@@ -31,6 +31,12 @@
 #include "kal_base.h"
 #include "securec.h"
 
+#ifdef CONFIG_LIGHT_GUN_USB_DEBUG
+#define USB_DEBUG(...) PRINTK(__VA_ARGS__)
+#else
+#define USB_DEBUG(...) do { } while (0)
+#endif
+
 typedef struct
 {
   device_type type;
@@ -309,7 +315,7 @@ int composite_attach(struct gadget_device *dev)
       goto detach;
     }
 
-  PRINTK("composite attach success, type=%d ret=%d\n", dev_type_get(), ret);
+  USB_DEBUG("composite attach success, type=%d ret=%d\n", dev_type_get(), ret);
 
   return 0; /* Attach success */
 

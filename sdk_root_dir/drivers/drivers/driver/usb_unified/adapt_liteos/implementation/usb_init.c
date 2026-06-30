@@ -40,6 +40,12 @@
 #include "implementation/global_implementation.h"
 #endif
 
+#ifdef CONFIG_LIGHT_GUN_USB_DEBUG
+#define USB_DEBUG(...) KAL_Printf(__VA_ARGS__)
+#else
+#define USB_DEBUG(...) do { } while (0)
+#endif
+
 typedef struct usb_info {
 	bool is_initialized;
 	controller_type ctype;
@@ -267,21 +273,21 @@ usb_init(controller_type ctype, device_type dtype)
 			usb_err("device type is not supported\n");
 			goto err;
 		}
-		KAL_Printf("[usb_init] device mode start, dtype=%d\n", dtype);
+		USB_DEBUG("[usb_init] device mode start, dtype=%d\n", dtype);
 
 #if defined (CONFIG_DRIVERS_USB2_DEVICE_CONTROLLER)
 		ret = (uint32_t)udc_init();
 #elif defined (CONFIG_DRIVERS_USB3_DEVICE_CONTROLLER)
 		ret = (uint32_t)udc3_init();
 #endif
-		KAL_Printf("[usb_init] device mode controller init ret=%u, dtype=%d\n", ret, dtype);
+		USB_DEBUG("[usb_init] device mode controller init ret=%u, dtype=%d\n", ret, dtype);
 	} else {
 		usb_err("controller type %d is error\n", ctype);
 		goto err;
 	}
 
 	if (ret != LOS_OK) {
-		KAL_Printf("[usb_init] init failed before complete, ctype=%d dtype=%d ret=%u\n", ctype, dtype, ret);
+		USB_DEBUG("[usb_init] init failed before complete, ctype=%d dtype=%d ret=%u\n", ctype, dtype, ret);
 #if defined (CONFIG_DRIVERS_USB_HOST_XHCI) || defined (CONFIG_DRIVERS_USB_HOST_EHCI)
 		if (ctype == HOST) {
 			usb_lock_destroy(&Giant);

@@ -30,6 +30,12 @@
 #include "gadget/f_acm.h"
 #include "gadget/f_hid_pri.h"
 
+#ifdef CONFIG_LIGHT_GUN_USB_DEBUG
+#define USB_DEBUG(...) PRINTK(__VA_ARGS__)
+#else
+#define USB_DEBUG(...) do { } while (0)
+#endif
+
 static const char g_acm_hid_str_lang[] =
 {
   4, USB_DESC_TYPE_STRING,
@@ -174,8 +180,8 @@ int usbdev_acm_hid_initialize(void *handle)
   struct composite_devdesc_s dev[USB_COMPOSITE_DEV_NUM];
   int ret;
 
-  PRINTK("  ** acm_hid init: hid_if=%d acm_if=%d composite_num=%d **\n",
-         USB_HID_FIRST_INTERFACE_NUM, USB_ACM_FIRST_INTERFACE_NUM, USB_COMPOSITE_DEV_NUM);
+  USB_DEBUG("  ** acm_hid init: hid_if=%d acm_if=%d composite_num=%d **\n",
+            USB_HID_FIRST_INTERFACE_NUM, USB_ACM_FIRST_INTERFACE_NUM, USB_COMPOSITE_DEV_NUM);
   usbdev_hid_initialize_sub(&dev[0], USB_HID_FIRST_INTERFACE_NUM, DEV_HID);
   acm_hid_get_composite_devdesc(&dev[0]);
   usbdev_acm_initialize_dev(&dev[1], USB_ACM_FIRST_INTERFACE_NUM, DEV_SERIAL);
@@ -184,7 +190,7 @@ int usbdev_acm_hid_initialize(void *handle)
   ret = composite_initialize_softc(USB_COMPOSITE_DEV_NUM, dev, handle);
   if (ret < 0)
     {
-      PRINTK("  ** acm_hid composite_initialize_softc failed, ret=%d **\n", ret);
+      USB_DEBUG("  ** acm_hid composite_initialize_softc failed, ret=%d **\n", ret);
       return -1;
     }
 

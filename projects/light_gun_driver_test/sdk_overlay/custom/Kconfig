@@ -466,6 +466,23 @@ config LIGHT_GUN_USB_SIM_USE_IR_LIVE_MOUSE
         为避免两套鼠标业务互相打架，脚本化 mouse move / mouse click /
         fake IR / trigger reference 会在运行时自动停用。
 
+config LIGHT_GUN_USB_DEBUG
+    bool "Enable extra USB bring-up debug log"
+    default n
+    help
+        打开后会输出本次为定位 CDC+HID 复合设备问题而补充的 USB 调试日志。
+        默认关闭，避免日常串口被大量底层枚举日志刷屏。
+
+config LIGHT_GUN_USB_CDC_ECHO_TEST
+    bool "Enable CDC ACM echo test task"
+    default n
+    depends on LIGHT_GUN_USB_DEVICE_MODE_ACM_HID
+    help
+        打开后创建一个最小 CDC 回显任务：
+        1. 启动后尝试通过 CDC 打印一条 banner
+        2. 主机往 CDC 串口发任意字节时，设备原样回显
+        用于确认 CDC 不只是枚举成功，而是真的可以收发。
+
 choice LIGHT_GUN_USB_OFFSCREEN_MODE
     prompt "Trigger offscreen behavior"
     default LIGHT_GUN_USB_OFFSCREEN_MODE_RIGHT_CLICK

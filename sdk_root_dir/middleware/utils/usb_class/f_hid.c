@@ -34,6 +34,12 @@
 #include "errcode.h"
 #include "usb_porting.h"
 
+#ifdef CONFIG_LIGHT_GUN_USB_DEBUG
+#define USB_DEBUG(...) PRINTK(__VA_ARGS__)
+#else
+#define USB_DEBUG(...) do { } while (0)
+#endif
+
 static int usbclass_hid_bind(struct usbdevclass_driver_s *driver, struct usbdev_s *dev);
 static int usbclass_hid_unbind(struct usbdevclass_driver_s *driver, struct usbdev_s *dev);
 static int usbclass_hid_setup(struct usbdevclass_driver_s *driver, struct usbdev_s *dev,
@@ -709,8 +715,8 @@ static void usbclass_hid_set_endpoint(struct usbdevclass_driver_s *driver, struc
                   index, ep_desc->addr, ret);
           goto errout;
         }
-      PRINTK("hid configure in_ep ok: index=%u ep_addr=0x%x logical=%u\n",
-             index, ep_desc->addr, hid_data->in_ep->eplog);
+      USB_DEBUG("hid configure in_ep ok: index=%u ep_addr=0x%x logical=%u\n",
+                index, ep_desc->addr, hid_data->in_ep->eplog);
       hid_data->in_ep_enabled = true;
       hid_data->idle_flag = 0;
       hid_data->report_flag = 0;

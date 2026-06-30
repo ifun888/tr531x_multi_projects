@@ -8,19 +8,27 @@
 #include "ir_test.h"
 #include "implementation/usb_init.h"
 #include "osal_debug.h"
+#include "osal_task.h"
 #include "pinctrl.h"
 #include "soc_osal.h"
 #include "gadget/f_hid.h"
+#if defined(CONFIG_LIGHT_GUN_USB_DEVICE_MODE_ACM_HID) && defined(CONFIG_LIGHT_GUN_USB_CDC_ECHO_TEST)
+#include "console.h"
+#include "gadget/usbd_acm.h"
+#endif
 
 #define USB_SIM_TASK_STACK_SIZE                0x1000
 #define USB_SIM_TASK_PRIO                      25
 #define USB_SIM_HID_INIT_DELAY_MS              500U
+#define USB_SIM_CDC_TASK_STACK_SIZE            0x1000
+#define USB_SIM_CDC_TASK_PRIO                  24
 #define USB_SIM_KEYBOARD_REPORT_LEN            9U
 #define USB_SIM_MOUSE_REPORT_LEN               5U
 #define USB_SIM_MAX_KEYS                       6U
 #define USB_SIM_INVALID_PIN                    255U
 #define USB_SIM_LED_COUNT                      3U
 #define USB_SIM_LINK_FAIL_THRESHOLD            3U
+#define USB_SIM_CDC_ECHO_BUF_LEN               64U
 
 #define input(size)             (0x80 | (size))
 #define output(size)            (0x90 | (size))
@@ -36,8 +44,9 @@
 #define usage_minimum(size)     (0x18 | (size))
 #define usage_maximum(size)     (0x28 | (size))
 
-#define USB_SIM_HID_INDEX_KEYBOARD 1
-#define USB_SIM_HID_INDEX_MOUSE    2
+#define USB_SIM_HID_REPORT_ID_KEYBOARD 0x01
+#define USB_SIM_HID_REPORT_ID_MOUSE    0x04
+#define USB_SIM_HID_PROTOCOL_COMPOSITE 0
 
 #if defined(CONFIG_LIGHT_GUN_USB_DEVICE_MODE_ACM_HID)
 #define USB_SIM_DEVICE_TYPE DEV_SER_HID
@@ -119,8 +128,7 @@ typedef struct {
 typedef struct {
     uint8_t usb_ready;
     uint8_t usb_active;
-    uint8_t keyboard_index;
-    uint8_t mouse_index;
+    uint8_t hid_index;
     uint32_t loop_ms;
     uint32_t scripted_elapsed_ms;
     uint32_t trigger_mode_elapsed_ms;
@@ -138,11 +146,11 @@ typedef struct {
     usb_sim_report_state_t report_state;
 } usb_sim_ctx_t;
 
-static const uint8_t g_usb_sim_report_desc_keyboard[] = {
+static const uint8_t g_usb_sim_report_desc_hid[] = {
     usage_page(1),      0x01,
     usage(1),           0x06,
     collection(1),      0x01,
-    report_id(1),       0x01,
+    report_id(1),       USB_SIM_HID_REPORT_ID_KEYBOARD,
     usage_page(1),      0x07,
     usage_minimum(1),   0xE0,
     usage_maximum(1),   0xE7,
@@ -172,13 +180,10 @@ static const uint8_t g_usb_sim_report_desc_keyboard[] = {
     usage_maximum(1),   0x65,
     input(1),           0x00,
     end_collection(0),
-};
-
-static const uint8_t g_usb_sim_report_desc_mouse[] = {
     usage_page(1),      0x01,
     usage(1),           0x02,
     collection(1),      0x01,
-    report_id(1),       0x04,
+    report_id(1),       USB_SIM_HID_REPORT_ID_MOUSE,
     usage(1),           0x01,
     collection(1),      0x00,
     report_count(1),    0x03,
@@ -234,6 +239,10 @@ static usb_sim_button_t g_usb_sim_buttons[] = {
 static usb_sim_ctx_t g_usb_sim_ctx = {
     .current_onscreen = 1,
 };
+
+#if defined(CONFIG_LIGHT_GUN_USB_DEVICE_MODE_ACM_HID) && defined(CONFIG_LIGHT_GUN_USB_CDC_ECHO_TEST)
+static char g_usb_sim_cdc_echo_buf[USB_SIM_CDC_ECHO_BUF_LEN];
+#endif
 
 static int8_t usb_sim_limit_to_i8(int32_t value)
 {
@@ -382,7 +391,7 @@ static void usb_sim_mouse_send(int8_t dx, int8_t dy, int8_t wheel)
         return;
     }
 
-    rpt.kind = 0x04;
+    rpt.kind = USB_SIM_HID_REPORT_ID_MOUSE;
     rpt.key.d8 = 0;
     rpt.key.b.left_key = g_usb_sim_ctx.report_state.mouse_left;
     rpt.key.b.right_key = g_usb_sim_ctx.report_state.mouse_right;
@@ -391,7 +400,7 @@ static void usb_sim_mouse_send(int8_t dx, int8_t dy, int8_t wheel)
     rpt.y = dy;
     rpt.wheel = wheel;
 
-    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.mouse_index, (char *)&rpt, USB_SIM_MOUSE_REPORT_LEN);
+    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.hid_index, (char *)&rpt, USB_SIM_MOUSE_REPORT_LEN);
     if (ret == -1) {
         osal_printk("[usb_sim_test] mouse report send failed.\r\n");
     }
@@ -406,7 +415,7 @@ static int usb_sim_mouse_send_checked(int8_t dx, int8_t dy, int8_t wheel)
         return -1;
     }
 
-    rpt.kind = 0x04;
+    rpt.kind = USB_SIM_HID_REPORT_ID_MOUSE;
     rpt.key.d8 = 0;
     rpt.key.b.left_key = g_usb_sim_ctx.report_state.mouse_left;
     rpt.key.b.right_key = g_usb_sim_ctx.report_state.mouse_right;
@@ -415,7 +424,7 @@ static int usb_sim_mouse_send_checked(int8_t dx, int8_t dy, int8_t wheel)
     rpt.y = dy;
     rpt.wheel = wheel;
 
-    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.mouse_index, (char *)&rpt, USB_SIM_MOUSE_REPORT_LEN);
+    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.hid_index, (char *)&rpt, USB_SIM_MOUSE_REPORT_LEN);
     return (ret < 0) ? -1 : 0;
 }
 
@@ -429,7 +438,7 @@ static void usb_sim_keyboard_send(void)
         return;
     }
 
-    rpt.kind = 0x01;
+    rpt.kind = USB_SIM_HID_REPORT_ID_KEYBOARD;
     rpt.special_key = 0;
     rpt.reserve = 0;
     for (i = 0; i < USB_SIM_MAX_KEYS; i++) {
@@ -439,7 +448,7 @@ static void usb_sim_keyboard_send(void)
         rpt.key[i] = g_usb_sim_ctx.report_state.keyboard_keys[i];
     }
 
-    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.keyboard_index, (char *)&rpt, USB_SIM_KEYBOARD_REPORT_LEN);
+    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.hid_index, (char *)&rpt, USB_SIM_KEYBOARD_REPORT_LEN);
     if (ret == -1) {
         osal_printk("[usb_sim_test] keyboard report send failed.\r\n");
     }
@@ -455,7 +464,7 @@ static int usb_sim_keyboard_send_checked(void)
         return -1;
     }
 
-    rpt.kind = 0x01;
+    rpt.kind = USB_SIM_HID_REPORT_ID_KEYBOARD;
     rpt.special_key = 0;
     rpt.reserve = 0;
     for (i = 0; i < USB_SIM_MAX_KEYS; i++) {
@@ -465,7 +474,7 @@ static int usb_sim_keyboard_send_checked(void)
         rpt.key[i] = g_usb_sim_ctx.report_state.keyboard_keys[i];
     }
 
-    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.keyboard_index, (char *)&rpt, USB_SIM_KEYBOARD_REPORT_LEN);
+    ret = (int32_t)fhid_send_data(g_usb_sim_ctx.hid_index, (char *)&rpt, USB_SIM_KEYBOARD_REPORT_LEN);
     return (ret < 0) ? -1 : 0;
 }
 
@@ -954,22 +963,17 @@ static int usb_sim_usb_init(void)
         .release_num = 0x0100,
     };
 
-    int32_t keyboard_index = hid_add_report_descriptor(
-        g_usb_sim_report_desc_keyboard,
-        sizeof(g_usb_sim_report_desc_keyboard),
-        USB_SIM_HID_INDEX_KEYBOARD);
-    int32_t mouse_index = hid_add_report_descriptor(
-        g_usb_sim_report_desc_mouse,
-        sizeof(g_usb_sim_report_desc_mouse),
-        USB_SIM_HID_INDEX_MOUSE);
+    int32_t hid_index = hid_add_report_descriptor(
+        g_usb_sim_report_desc_hid,
+        sizeof(g_usb_sim_report_desc_hid),
+        USB_SIM_HID_PROTOCOL_COMPOSITE);
 
-    if (keyboard_index < 0 || mouse_index < 0) {
+    if (hid_index < 0) {
         osal_printk("[usb_sim_test] hid_add_report_descriptor failed.\r\n");
         return -1;
     }
 
-    g_usb_sim_ctx.keyboard_index = (uint8_t)keyboard_index;
-    g_usb_sim_ctx.mouse_index = (uint8_t)mouse_index;
+    g_usb_sim_ctx.hid_index = (uint8_t)hid_index;
 
     if (usbd_set_device_info(USB_SIM_DEVICE_TYPE, &str_manufacturer, &str_product, &str_serial, dev_id) != 0) {
         osal_printk("[usb_sim_test] usbd_set_device_info failed.\r\n");
@@ -983,12 +987,58 @@ static int usb_sim_usb_init(void)
 
     osal_msleep(USB_SIM_HID_INIT_DELAY_MS);
     g_usb_sim_ctx.usb_ready = 1U;
-    osal_printk("[usb_sim_test] USB %s ready: keyboard_index=%u mouse_index=%u.\r\n",
+    osal_printk("[usb_sim_test] USB %s ready: hid_index=%u report_ids=(kbd:%u mouse:%u).\r\n",
         USB_SIM_DEVICE_MODE_NAME,
-        (unsigned int)g_usb_sim_ctx.keyboard_index,
-        (unsigned int)g_usb_sim_ctx.mouse_index);
+        (unsigned int)g_usb_sim_ctx.hid_index,
+        (unsigned int)USB_SIM_HID_REPORT_ID_KEYBOARD,
+        (unsigned int)USB_SIM_HID_REPORT_ID_MOUSE);
     return 0;
 }
+
+#if defined(CONFIG_LIGHT_GUN_USB_DEVICE_MODE_ACM_HID) && defined(CONFIG_LIGHT_GUN_USB_CDC_ECHO_TEST)
+static int usb_sim_cdc_echo_task(void *arg)
+{
+    static const char cdc_banner[] = "[usb_sim_test][cdc] echo task ready, send bytes to verify RX/TX.\r\n";
+    ssize_t ret;
+
+    unused(arg);
+
+    (void)usb_serial_ioctl(0, CONSOLE_CMD_RD_BLOCK_SERIAL, 1);
+    ret = usb_serial_write(0, cdc_banner, sizeof(cdc_banner) - 1U);
+    osal_printk("[usb_sim_test] CDC echo task started, banner_write=%d.\r\n", (int)ret);
+
+    while (1) {
+        ssize_t recv_len = usb_serial_read(0, g_usb_sim_cdc_echo_buf, sizeof(g_usb_sim_cdc_echo_buf));
+        if (recv_len <= 0) {
+            osal_msleep(20);
+            continue;
+        }
+
+        osal_printk("[usb_sim_test] CDC RX %d bytes, echo back.\r\n", (int)recv_len);
+        ret = usb_serial_write(0, g_usb_sim_cdc_echo_buf, (size_t)recv_len);
+        if (ret < 0) {
+            osal_printk("[usb_sim_test] CDC echo write failed, ret=%d.\r\n", (int)ret);
+        }
+    }
+
+    return 0;
+}
+
+static void usb_sim_cdc_echo_start(void)
+{
+    osal_task *task = osal_kthread_create(usb_sim_cdc_echo_task, NULL, "UsbCdcEcho", USB_SIM_CDC_TASK_STACK_SIZE);
+    if (task == NULL) {
+        osal_printk("[usb_sim_test] CDC echo task create failed.\r\n");
+        return;
+    }
+
+    (void)osal_kthread_set_priority(task, USB_SIM_CDC_TASK_PRIO);
+}
+#else
+static void usb_sim_cdc_echo_start(void)
+{
+}
+#endif
 
 static int usb_sim_test_task(void *arg)
 {
@@ -1001,6 +1051,7 @@ static int usb_sim_test_task(void *arg)
     if (usb_sim_usb_init() != 0) {
         return -1;
     }
+    usb_sim_cdc_echo_start();
 
     usb_sim_reset_runtime_state();
     usb_sim_buttons_init();
