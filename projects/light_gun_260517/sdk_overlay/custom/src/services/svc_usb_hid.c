@@ -66,6 +66,8 @@ typedef struct {
     uint8_t active;
     uint8_t link_fail_count;
     uint8_t probed_once;
+    uint8_t route_wireless_active;
+    uint8_t route_wireless_gamepad_mode;
     uint8_t mouse_buttons;
     uint8_t key_count;
     uint8_t keyboard_keys[6];
@@ -78,6 +80,60 @@ typedef struct {
 } hid_ctx_t;
 
 static hid_ctx_t g_hid;
+
+static void hid_reset_cached_reports(void)
+{
+    g_hid.mouse_buttons = 0U;
+    g_hid.key_count = 0U;
+    (void)memset(g_hid.keyboard_keys, 0, sizeof(g_hid.keyboard_keys));
+    (void)memset(&g_hid.gamepad_report, 0, sizeof(g_hid.gamepad_report));
+}
+
+static int hid_gamepad_report_is_zero(const of_wpkt_gamepad_payload_t *pkt)
+{
+    static const of_wpkt_gamepad_payload_t zero_pkt = {0};
+
+    if (pkt == 0) {
+        return 1;
+    }
+    return (memcmp(pkt, &zero_pkt, sizeof(zero_pkt)) == 0);
+}
+
+static void hid_release_previous_wireless_family(uint8_t previous_gamepad_mode)
+{
+    static const uint8_t zero_keys[6] = {0};
+    uint32_t sent = 0U;
+
+    if (previous_gamepad_mode != 0U) {
+        of_wpkt_gamepad_payload_t pkt = {0};
+
+        if (!hid_gamepad_report_is_zero(&g_hid.gamepad_report)) {
+            if (of_link_send_packet(OF_WPKT_TYPE_HID_GAMEPAD, (const uint8_t *)&pkt, sizeof(pkt), &sent) == 0) {
+                osal_printk("[svc_usb_hid] released wireless gamepad state on route transition.\r\n");
+            }
+        }
+        return;
+    }
+
+    if (g_hid.mouse_buttons != 0U) {
+        of_wpkt_mouse_payload_t mouse_pkt = {0};
+
+        sent = 0U;
+        if (of_link_send_packet(OF_WPKT_TYPE_HID_MOUSE, (const uint8_t *)&mouse_pkt, sizeof(mouse_pkt), &sent) == 0) {
+            osal_printk("[svc_usb_hid] released wireless mouse buttons on route transition.\r\n");
+        }
+    }
+
+    if ((g_hid.key_count != 0U) || (memcmp(g_hid.keyboard_keys, zero_keys, sizeof(g_hid.keyboard_keys)) != 0)) {
+        of_wpkt_keyboard_payload_t key_pkt;
+
+        (void)memset(&key_pkt, 0, sizeof(key_pkt));
+        sent = 0U;
+        if (of_link_send_packet(OF_WPKT_TYPE_HID_KEYBOARD, (const uint8_t *)&key_pkt, sizeof(key_pkt), &sent) == 0) {
+            osal_printk("[svc_usb_hid] released wireless keyboard state on route transition.\r\n");
+        }
+    }
+}
 
 static int8_t hid_clamp_i8(int32_t value)
 {
@@ -258,6 +314,17 @@ void svc_usb_hid_tick(void)
     uint32_t now_ms = (uint32_t)(of_time_us() / 1000U);
     int wireless_active = (of_transport_get_type() == OF_TRANSPORT_SLE) && drv_sle_link_is_ready();
     int wireless_gamepad_mode = wireless_active && of_proto_mh_gamepad_enabled();
+    uint8_t route_changed = ((uint8_t)wireless_active != g_hid.route_wireless_active) ||
+        ((uint8_t)wireless_gamepad_mode != g_hid.route_wireless_gamepad_mode);
+
+    if (route_changed != 0U) {
+        if (g_hid.route_wireless_active != 0U) {
+            hid_release_previous_wireless_family(g_hid.route_wireless_gamepad_mode);
+        }
+        hid_reset_cached_reports();
+        g_hid.route_wireless_active = (uint8_t)wireless_active;
+        g_hid.route_wireless_gamepad_mode = (uint8_t)wireless_gamepad_mode;
+    }
 
     if (!wireless_active && !drv_usb_hid_is_ready()) {
         if ((now_ms - g_hid.probe_last_ms) < OF_USB_HID_PROBE_INTERVAL_MS) {
@@ -401,10 +468,7 @@ void svc_usb_hid_tick(void)
         drv_usb_hid_set_ready(0);
         g_hid.active = 0U;
         g_hid.link_fail_count = 0U;
-        g_hid.mouse_buttons = 0U;
-        g_hid.key_count = 0U;
-        (void)memset(g_hid.keyboard_keys, 0, sizeof(g_hid.keyboard_keys));
-        (void)memset(&g_hid.gamepad_report, 0, sizeof(g_hid.gamepad_report));
+        hid_reset_cached_reports();
         osal_printk("[svc_usb_hid] HID link lost, pause reports and wait re-probe.\r\n");
     }
 
