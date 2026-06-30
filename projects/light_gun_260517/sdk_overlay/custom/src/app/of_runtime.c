@@ -14,6 +14,7 @@
 #include "services/svc_calibration.h"
 #include "services/svc_position.h"
 #include "services/svc_usb_hid.h"
+#include "osal_debug.h"
 #include <stdint.h>
 
 #ifndef OF_ROLE_DONGLE
@@ -153,6 +154,7 @@ void of_runtime_once(void)
     uint8_t pkt_type = 0U;
     uint8_t payload[OF_WPKT_MAX_PAYLOAD];
     uint32_t payload_len = 0U;
+    static uint8_t s_logged_stream_error = 0U;
 
     if (s_wireless_inited == 0U) {
         of_wireless_stream_init(&s_wireless_rx);
@@ -166,7 +168,20 @@ void of_runtime_once(void)
         of_diag_on_rx(got);
         if (of_link_wireless_active()) {
             of_wireless_stream_feed(&s_wireless_rx, rx, got);
-            while (of_wireless_stream_next(&s_wireless_rx, &pkt_type, payload, sizeof(payload), &payload_len) > 0) {
+            for (;;) {
+                int stream_rc = of_wireless_stream_next(&s_wireless_rx, &pkt_type, payload, sizeof(payload),
+                    &payload_len);
+
+                if (stream_rc == 0) {
+                    break;
+                }
+                if (stream_rc < 0) {
+                    if (s_logged_stream_error == 0U) {
+                        s_logged_stream_error = 1U;
+                        osal_printk("[openfire][gun] malformed wireless frame dropped\r\n");
+                    }
+                    continue;
+                }
                 if (of_link_on_wireless_packet(pkt_type, payload, payload_len)) {
                     continue;
                 }
